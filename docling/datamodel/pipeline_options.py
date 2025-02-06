@@ -1,8 +1,60 @@
+import logging
+import os
 from enum import Enum
 from pathlib import Path
-from typing import List, Literal, Optional, Union
+from typing import Any, List, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_log = logging.getLogger(__name__)
+
+
+class AcceleratorDevice(str, Enum):
+    """Devices to run model inference"""
+
+    AUTO = "auto"
+    CPU = "cpu"
+    CUDA = "cuda"
+    MPS = "mps"
+
+
+class AcceleratorOptions(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="DOCLING_", env_nested_delimiter="_", populate_by_name=True
+    )
+
+    num_threads: int = 4
+    device: AcceleratorDevice = AcceleratorDevice.AUTO
+
+    @model_validator(mode="before")
+    @classmethod
+    def check_alternative_envvars(cls, data: Any) -> Any:
+        r"""
+        Set num_threads from the "alternative" envvar OMP_NUM_THREADS.
+        The alternative envvar is used only if it is valid and the regular envvar is not set.
+
+        Notice: The standard pydantic settings mechanism with parameter "aliases" does not provide
+        the same functionality. In case the alias envvar is set and the user tries to override the
+        parameter in settings initialization, Pydantic treats the parameter provided in __init__()
+        as an extra input instead of simply overwriting the evvar value for that parameter.
+        """
+        if isinstance(data, dict):
+            input_num_threads = data.get("num_threads")
+
+            # Check if to set the num_threads from the alternative envvar
+            if input_num_threads is None:
+                docling_num_threads = os.getenv("DOCLING_NUM_THREADS")
+                omp_num_threads = os.getenv("OMP_NUM_THREADS")
+                if docling_num_threads is None and omp_num_threads is not None:
+                    try:
+                        data["num_threads"] = int(omp_num_threads)
+                    except ValueError:
+                        _log.error(
+                            "Ignoring misformatted envvar OMP_NUM_THREADS '%s'",
+                            omp_num_threads,
+                        )
+        return data
 
 
 class TableFormerMode(str, Enum):
@@ -67,6 +119,7 @@ class RapidOcrOptions(OcrOptions):
     det_model_path: Optional[str] = None  # same default as rapidocr
     cls_model_path: Optional[str] = None  # same default as rapidocr
     rec_model_path: Optional[str] = None  # same default as rapidocr
+    rec_keys_path: Optional[str] = None  # same default as rapidocr
 
     model_config = ConfigDict(
         extra="forbid",
@@ -78,9 +131,14 @@ class EasyOcrOptions(OcrOptions):
 
     kind: Literal["easyocr"] = "easyocr"
     lang: List[str] = ["fr", "de", "es", "en"]
-    use_gpu: bool = True  # same default as easyocr.Reader
+
+    use_gpu: Optional[bool] = None
+
+    confidence_threshold: float = 0.5
+
     model_storage_directory: Optional[str] = None
-    download_enabled: bool = True  # same default as easyocr.Reader
+    recog_network: Optional[str] = "standard"
+    download_enabled: bool = True
 
     model_config = ConfigDict(
         extra="forbid",
@@ -153,6 +211,7 @@ class PipelineOptions(BaseModel):
         True  # This default will be set to False on a future version of docling
     )
     document_timeout: Optional[float] = None
+    accelerator_options: AcceleratorOptions = AcceleratorOptions()
 
 
 class PdfPipelineOptions(PipelineOptions):
@@ -161,6 +220,9 @@ class PdfPipelineOptions(PipelineOptions):
     artifacts_path: Optional[Union[Path, str]] = None
     do_table_structure: bool = True  # True: perform table structure extraction
     do_ocr: bool = True  # True: perform OCR, replace programmatic PDF text
+    do_code_enrichment: bool = False  # True: perform code OCR
+    do_formula_enrichment: bool = False  # True: perform formula OCR, return Latex code
+    do_picture_classification: bool = False  # True: classify pictures in documents
 
     table_structure_options: TableStructureOptions = TableStructureOptions()
     ocr_options: Union[

@@ -18,6 +18,11 @@ from docling.datamodel.pipeline_options import (
     TesseractOcrOptions,
 )
 from docling.models.base_ocr_model import BaseOcrModel
+from docling.models.code_formula_model import CodeFormulaModel, CodeFormulaModelOptions
+from docling.models.document_picture_classifier import (
+    DocumentPictureClassifier,
+    DocumentPictureClassifierOptions,
+)
 from docling.models.ds_glm_model import GlmModel, GlmOptions
 from docling.models.easyocr_model import EasyOcrModel
 from docling.models.layout_model import LayoutModel
@@ -38,7 +43,7 @@ _log = logging.getLogger(__name__)
 
 
 class StandardPdfPipeline(PaginatedPipeline):
-    _layout_model_path = "model_artifacts/layout/beehive_v0.0.5_pt"
+    _layout_model_path = "model_artifacts/layout"
     _table_model_path = "model_artifacts/tableformer"
 
     def __init__(self, pipeline_options: PdfPipelineOptions):
@@ -50,7 +55,7 @@ class StandardPdfPipeline(PaginatedPipeline):
         else:
             self.artifacts_path = Path(pipeline_options.artifacts_path)
 
-        keep_images = (
+        self.keep_images = (
             self.pipeline_options.generate_page_images
             or self.pipeline_options.generate_picture_images
             or self.pipeline_options.generate_table_images
@@ -75,7 +80,8 @@ class StandardPdfPipeline(PaginatedPipeline):
             # Layout model
             LayoutModel(
                 artifacts_path=self.artifacts_path
-                / StandardPdfPipeline._layout_model_path
+                / StandardPdfPipeline._layout_model_path,
+                accelerator_options=pipeline_options.accelerator_options,
             ),
             # Table structure model
             TableStructureModel(
@@ -83,14 +89,39 @@ class StandardPdfPipeline(PaginatedPipeline):
                 artifacts_path=self.artifacts_path
                 / StandardPdfPipeline._table_model_path,
                 options=pipeline_options.table_structure_options,
+                accelerator_options=pipeline_options.accelerator_options,
             ),
             # Page assemble
-            PageAssembleModel(options=PageAssembleOptions(keep_images=keep_images)),
+            PageAssembleModel(options=PageAssembleOptions()),
         ]
 
         self.enrichment_pipe = [
             # Other models working on `NodeItem` elements in the DoclingDocument
+            # Code Formula Enrichment Model
+            CodeFormulaModel(
+                enabled=pipeline_options.do_code_enrichment
+                or pipeline_options.do_formula_enrichment,
+                artifacts_path=pipeline_options.artifacts_path,
+                options=CodeFormulaModelOptions(
+                    do_code_enrichment=pipeline_options.do_code_enrichment,
+                    do_formula_enrichment=pipeline_options.do_formula_enrichment,
+                ),
+                accelerator_options=pipeline_options.accelerator_options,
+            ),
+            # Document Picture Classifier
+            DocumentPictureClassifier(
+                enabled=pipeline_options.do_picture_classification,
+                artifacts_path=pipeline_options.artifacts_path,
+                options=DocumentPictureClassifierOptions(),
+                accelerator_options=pipeline_options.accelerator_options,
+            ),
         ]
+
+        if (
+            self.pipeline_options.do_formula_enrichment
+            or self.pipeline_options.do_code_enrichment
+        ):
+            self.keep_backend = True
 
     @staticmethod
     def download_models_hf(
@@ -104,7 +135,7 @@ class StandardPdfPipeline(PaginatedPipeline):
             repo_id="ds4sd/docling-models",
             force_download=force,
             local_dir=local_dir,
-            revision="v2.0.1",
+            revision="v2.1.0",
         )
 
         return Path(download_path)
@@ -114,6 +145,7 @@ class StandardPdfPipeline(PaginatedPipeline):
             return EasyOcrModel(
                 enabled=self.pipeline_options.do_ocr,
                 options=self.pipeline_options.ocr_options,
+                accelerator_options=self.pipeline_options.accelerator_options,
             )
         elif isinstance(self.pipeline_options.ocr_options, TesseractCliOcrOptions):
             return TesseractOcrCliModel(
@@ -129,6 +161,7 @@ class StandardPdfPipeline(PaginatedPipeline):
             return RapidOcrModel(
                 enabled=self.pipeline_options.do_ocr,
                 options=self.pipeline_options.ocr_options,
+                accelerator_options=self.pipeline_options.accelerator_options,
             )
         elif isinstance(self.pipeline_options.ocr_options, OcrMacOptions):
             if "darwin" != sys.platform:
