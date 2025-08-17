@@ -19,7 +19,8 @@ IMAGE_RESOLUTION_SCALE = 2.0
 def main():
     logging.basicConfig(level=logging.INFO)
 
-    input_doc_path = Path("./tests/data/2206.01062.pdf")
+    data_folder = Path(__file__).parent / "../../tests/data"
+    input_doc_path = data_folder / "pdf/2206.01062.pdf"
     output_dir = Path("scratch")
 
     # Important: For operating with page images, we must keep them, otherwise the DocumentConverter
@@ -51,7 +52,6 @@ def main():
         page_segments,
         page,
     ) in generate_multimodal_pages(conv_res):
-
         dpi = page._default_image_scale * 72
 
         rows.append(
@@ -81,10 +81,10 @@ def main():
         )
 
     # Generate one parquet from all documents
-    df = pd.json_normalize(rows)
+    df_result = pd.json_normalize(rows)
     now = datetime.datetime.now()
     output_filename = output_dir / f"multimodal_{now:%Y-%m-%d_%H%M%S}.parquet"
-    df.to_parquet(output_filename)
+    df_result.to_parquet(output_filename)
 
     end_time = time.time() - start_time
 

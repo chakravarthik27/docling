@@ -3,17 +3,12 @@ import logging
 import time
 from pathlib import Path
 
-from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
+from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
 from docling.datamodel.base_models import InputFormat
 from docling.datamodel.pipeline_options import (
-    AcceleratorDevice,
-    AcceleratorOptions,
     PdfPipelineOptions,
 )
 from docling.document_converter import DocumentConverter, PdfFormatOption
-from docling.models.ocr_mac_model import OcrMacOptions
-from docling.models.tesseract_ocr_cli_model import TesseractCliOcrOptions
-from docling.models.tesseract_ocr_model import TesseractOcrOptions
 
 _log = logging.getLogger(__name__)
 
@@ -21,7 +16,8 @@ _log = logging.getLogger(__name__)
 def main():
     logging.basicConfig(level=logging.INFO)
 
-    input_doc_path = Path("./tests/data/2206.01062.pdf")
+    data_folder = Path(__file__).parent / "../../tests/data"
+    input_doc_path = data_folder / "pdf/2206.01062.pdf"
 
     ###########################################################################
 

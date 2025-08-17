@@ -2,7 +2,11 @@ import glob
 import os
 from pathlib import Path
 
-from docling.backend.asciidoc_backend import AsciiDocBackend
+from docling.backend.asciidoc_backend import (
+    DEFAULT_IMAGE_HEIGHT,
+    DEFAULT_IMAGE_WIDTH,
+    AsciiDocBackend,
+)
 from docling.datamodel.base_models import InputFormat
 from docling.datamodel.document import InputDocument
 
@@ -18,9 +22,26 @@ def _get_backend(fname):
     return doc_backend
 
 
-def test_asciidocs_examples():
+def test_parse_picture():
+    line = (
+        "image::images/example1.png[Example Image, width=200, height=150, align=center]"
+    )
+    res = AsciiDocBackend._parse_picture(line)
+    assert res
+    assert res.get("width", 0) == "200"
+    assert res.get("height", 0) == "150"
+    assert res.get("uri", "") == "images/example1.png"
 
-    fnames = sorted(glob.glob("./tests/data/*.asciidoc"))
+    line = "image::renamed-bookmark.png[Renamed bookmark]"
+    res = AsciiDocBackend._parse_picture(line)
+    assert res
+    assert "width" not in res
+    assert "height" not in res
+    assert res.get("uri", "") == "renamed-bookmark.png"
+
+
+def test_asciidocs_examples():
+    fnames = sorted(glob.glob("./tests/data/asciidoc/*.asciidoc"))
 
     for fname in fnames:
         print(f"reading {fname}")
@@ -38,8 +59,8 @@ def test_asciidocs_examples():
         print("\n\n", pred_mddoc)
 
         if os.path.exists(gname):
-            with open(gname, "r") as fr:
-                true_mddoc = fr.read()
+            with open(gname) as fr:
+                fr.read()
 
             # assert pred_mddoc == true_mddoc, "pred_mddoc!=true_mddoc for asciidoc"
         else:

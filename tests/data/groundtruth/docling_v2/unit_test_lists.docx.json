@@ -1,6 +1,6 @@
 {
   "schema_name": "DoclingDocument",
-  "version": "1.0.0",
+  "version": "1.5.0",
   "name": "unit_test_lists",
   "origin": {
     "mimetype": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -10,6 +10,7 @@
   "furniture": {
     "self_ref": "#/furniture",
     "children": [],
+    "content_layer": "furniture",
     "name": "_root_",
     "label": "unspecified"
   },
@@ -20,6 +21,7 @@
         "$ref": "#/groups/0"
       }
     ],
+    "content_layer": "body",
     "name": "_root_",
     "label": "unspecified"
   },
@@ -34,6 +36,7 @@
           "$ref": "#/texts/0"
         }
       ],
+      "content_layer": "body",
       "name": "header-0",
       "label": "section"
     },
@@ -62,6 +65,7 @@
           "$ref": "#/texts/36"
         }
       ],
+      "content_layer": "body",
       "name": "header-2",
       "label": "section"
     },
@@ -81,6 +85,7 @@
           "$ref": "#/texts/10"
         }
       ],
+      "content_layer": "body",
       "name": "list",
       "label": "list"
     },
@@ -100,6 +105,7 @@
           "$ref": "#/texts/15"
         }
       ],
+      "content_layer": "body",
       "name": "list",
       "label": "list"
     },
@@ -122,6 +128,7 @@
           "$ref": "#/texts/23"
         }
       ],
+      "content_layer": "body",
       "name": "list",
       "label": "list"
     },
@@ -141,6 +148,7 @@
           "$ref": "#/texts/22"
         }
       ],
+      "content_layer": "body",
       "name": "list",
       "label": "list"
     },
@@ -160,6 +168,7 @@
           "$ref": "#/texts/28"
         }
       ],
+      "content_layer": "body",
       "name": "list",
       "label": "list"
     },
@@ -173,6 +182,7 @@
           "$ref": "#/texts/27"
         }
       ],
+      "content_layer": "body",
       "name": "list",
       "label": "list"
     },
@@ -192,6 +202,7 @@
           "$ref": "#/texts/34"
         }
       ],
+      "content_layer": "body",
       "name": "list",
       "label": "list"
     },
@@ -208,6 +219,7 @@
           "$ref": "#/groups/10"
         }
       ],
+      "content_layer": "body",
       "name": "list",
       "label": "list"
     },
@@ -221,6 +233,7 @@
           "$ref": "#/texts/33"
         }
       ],
+      "content_layer": "body",
       "name": "list",
       "label": "list"
     },
@@ -243,6 +256,7 @@
           "$ref": "#/texts/42"
         }
       ],
+      "content_layer": "body",
       "name": "list",
       "label": "list"
     },
@@ -262,6 +276,7 @@
           "$ref": "#/groups/13"
         }
       ],
+      "content_layer": "body",
       "name": "list",
       "label": "list"
     },
@@ -275,6 +290,7 @@
           "$ref": "#/texts/41"
         }
       ],
+      "content_layer": "body",
       "name": "list",
       "label": "list"
     }
@@ -308,6 +324,7 @@
           "$ref": "#/groups/1"
         }
       ],
+      "content_layer": "body",
       "label": "section_header",
       "prov": [],
       "orig": "Test Document",
@@ -320,6 +337,7 @@
         "$ref": "#/texts/0"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "",
@@ -331,6 +349,7 @@
         "$ref": "#/texts/0"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "",
@@ -342,10 +361,18 @@
         "$ref": "#/texts/0"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "Paragraph 2.1.1",
-      "text": "Paragraph 2.1.1"
+      "text": "Paragraph 2.1.1",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      }
     },
     {
       "self_ref": "#/texts/4",
@@ -353,6 +380,7 @@
         "$ref": "#/texts/0"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "",
@@ -364,10 +392,18 @@
         "$ref": "#/texts/0"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "Paragraph 2.1.2",
-      "text": "Paragraph 2.1.2"
+      "text": "Paragraph 2.1.2",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      }
     },
     {
       "self_ref": "#/texts/6",
@@ -375,6 +411,7 @@
         "$ref": "#/texts/0"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "",
@@ -393,6 +430,7 @@
           "$ref": "#/texts/11"
         }
       ],
+      "content_layer": "body",
       "label": "section_header",
       "prov": [],
       "orig": "Test 1:",
@@ -405,12 +443,20 @@
         "$ref": "#/groups/2"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "List item 1",
       "text": "List item 1",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/9",
@@ -418,12 +464,20 @@
         "$ref": "#/groups/2"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "List item 2",
       "text": "List item 2",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/10",
@@ -431,12 +485,20 @@
         "$ref": "#/groups/2"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "List item 3",
       "text": "List item 3",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/11",
@@ -444,6 +506,7 @@
         "$ref": "#/texts/7"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "",
@@ -462,6 +525,7 @@
           "$ref": "#/texts/16"
         }
       ],
+      "content_layer": "body",
       "label": "section_header",
       "prov": [],
       "orig": "Test 2:",
@@ -474,12 +538,20 @@
         "$ref": "#/groups/3"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "List item a",
       "text": "List item a",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/14",
@@ -487,12 +559,20 @@
         "$ref": "#/groups/3"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "List item b",
       "text": "List item b",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/15",
@@ -500,12 +580,20 @@
         "$ref": "#/groups/3"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "List item c",
       "text": "List item c",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/16",
@@ -513,6 +601,7 @@
         "$ref": "#/texts/12"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "",
@@ -531,6 +620,7 @@
           "$ref": "#/texts/24"
         }
       ],
+      "content_layer": "body",
       "label": "section_header",
       "prov": [],
       "orig": "Test 3:",
@@ -543,12 +633,20 @@
         "$ref": "#/groups/4"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "List item 1",
       "text": "List item 1",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/19",
@@ -556,12 +654,20 @@
         "$ref": "#/groups/4"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "List item 2",
       "text": "List item 2",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/20",
@@ -569,12 +675,20 @@
         "$ref": "#/groups/5"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "List item 1.1",
       "text": "List item 1.1",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/21",
@@ -582,12 +696,20 @@
         "$ref": "#/groups/5"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "List item 1.2",
       "text": "List item 1.2",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/22",
@@ -595,12 +717,20 @@
         "$ref": "#/groups/5"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "List item 1.3",
       "text": "List item 1.3",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/23",
@@ -608,12 +738,20 @@
         "$ref": "#/groups/4"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "List item 3",
       "text": "List item 3",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/24",
@@ -621,6 +759,7 @@
         "$ref": "#/texts/17"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "",
@@ -639,6 +778,7 @@
           "$ref": "#/texts/29"
         }
       ],
+      "content_layer": "body",
       "label": "section_header",
       "prov": [],
       "orig": "Test 4:",
@@ -651,12 +791,20 @@
         "$ref": "#/groups/6"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "List item 1",
       "text": "List item 1",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/27",
@@ -664,12 +812,20 @@
         "$ref": "#/groups/7"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "List item 1.1",
       "text": "List item 1.1",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/28",
@@ -677,12 +833,20 @@
         "$ref": "#/groups/6"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "List item 2",
       "text": "List item 2",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/29",
@@ -690,6 +854,7 @@
         "$ref": "#/texts/25"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "",
@@ -708,6 +873,7 @@
           "$ref": "#/texts/35"
         }
       ],
+      "content_layer": "body",
       "label": "section_header",
       "prov": [],
       "orig": "Test 5:",
@@ -720,12 +886,20 @@
         "$ref": "#/groups/8"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "List item 1",
       "text": "List item 1",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/32",
@@ -733,12 +907,20 @@
         "$ref": "#/groups/9"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "List item 1.1",
       "text": "List item 1.1",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/33",
@@ -746,12 +928,20 @@
         "$ref": "#/groups/10"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "List item 1.1.1",
       "text": "List item 1.1.1",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/34",
@@ -759,12 +949,20 @@
         "$ref": "#/groups/8"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "List item 3",
       "text": "List item 3",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/35",
@@ -772,6 +970,7 @@
         "$ref": "#/texts/30"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "",
@@ -796,6 +995,7 @@
           "$ref": "#/texts/45"
         }
       ],
+      "content_layer": "body",
       "label": "section_header",
       "prov": [],
       "orig": "Test 6:",
@@ -808,12 +1008,20 @@
         "$ref": "#/groups/11"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "List item 1",
       "text": "List item 1",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/38",
@@ -821,12 +1029,20 @@
         "$ref": "#/groups/11"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "List item 2",
       "text": "List item 2",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/39",
@@ -834,12 +1050,20 @@
         "$ref": "#/groups/12"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "List item 1.1",
       "text": "List item 1.1",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/40",
@@ -847,12 +1071,20 @@
         "$ref": "#/groups/12"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "List item 1.2",
       "text": "List item 1.2",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/41",
@@ -860,12 +1092,20 @@
         "$ref": "#/groups/13"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "List item 1.2.1",
       "text": "List item 1.2.1",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/42",
@@ -873,12 +1113,20 @@
         "$ref": "#/groups/11"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "List item 3",
       "text": "List item 3",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/43",
@@ -886,6 +1134,7 @@
         "$ref": "#/texts/36"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "",
@@ -897,6 +1146,7 @@
         "$ref": "#/texts/36"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "",
@@ -908,6 +1158,7 @@
         "$ref": "#/texts/36"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "",
@@ -917,5 +1168,6 @@
   "pictures": [],
   "tables": [],
   "key_value_items": [],
+  "form_items": [],
   "pages": {}
 }

@@ -1,20 +1,16 @@
 from pathlib import Path
 
-from docling.backend.docling_parse_backend import DoclingParseDocumentBackend
 from docling.datamodel.base_models import InputFormat
 from docling.datamodel.pipeline_options import (
-    EasyOcrOptions,
-    OcrMacOptions,
     PdfPipelineOptions,
-    RapidOcrOptions,
     TesseractCliOcrOptions,
-    TesseractOcrOptions,
 )
 from docling.document_converter import DocumentConverter, PdfFormatOption
 
 
 def main():
-    input_doc = Path("./tests/data/2206.01062.pdf")
+    data_folder = Path(__file__).parent / "../../tests/data"
+    input_doc_path = data_folder / "pdf/2206.01062.pdf"
 
     pipeline_options = PdfPipelineOptions()
     pipeline_options.do_ocr = True
@@ -37,7 +33,7 @@ def main():
         }
     )
 
-    doc = converter.convert(input_doc).document
+    doc = converter.convert(input_doc_path).document
     md = doc.export_to_markdown()
     print(md)
 

@@ -1,6 +1,11 @@
+# WARNING
+# This example demonstrates only how to develop a new enrichment model.
+# It does not run the actual picture classifier model.
+
 import logging
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from docling_core.types.doc import (
     DoclingDocument,
@@ -71,7 +76,8 @@ class ExamplePictureClassifierPipeline(StandardPdfPipeline):
 def main():
     logging.basicConfig(level=logging.INFO)
 
-    input_doc_path = Path("./tests/data/2206.01062.pdf")
+    data_folder = Path(__file__).parent / "../../tests/data"
+    input_doc_path = data_folder / "pdf/2206.01062.pdf"
 
     pipeline_options = ExamplePictureClassifierPipelineOptions()
     pipeline_options.images_scale = 2.0

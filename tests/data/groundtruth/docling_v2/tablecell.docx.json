@@ -1,6 +1,6 @@
 {
   "schema_name": "DoclingDocument",
-  "version": "1.0.0",
+  "version": "1.5.0",
   "name": "tablecell",
   "origin": {
     "mimetype": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -10,6 +10,7 @@
   "furniture": {
     "self_ref": "#/furniture",
     "children": [],
+    "content_layer": "furniture",
     "name": "_root_",
     "label": "unspecified"
   },
@@ -38,6 +39,7 @@
         "$ref": "#/texts/6"
       }
     ],
+    "content_layer": "body",
     "name": "_root_",
     "label": "unspecified"
   },
@@ -55,6 +57,7 @@
           "$ref": "#/texts/1"
         }
       ],
+      "content_layer": "body",
       "name": "list",
       "label": "list"
     }
@@ -66,12 +69,20 @@
         "$ref": "#/groups/0"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "Hello world1",
       "text": "Hello world1",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/1",
@@ -79,12 +90,20 @@
         "$ref": "#/groups/0"
       },
       "children": [],
+      "content_layer": "body",
       "label": "list_item",
       "prov": [],
       "orig": "Hello2",
       "text": "Hello2",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      },
       "enumerated": false,
-      "marker": "-"
+      "marker": ""
     },
     {
       "self_ref": "#/texts/2",
@@ -92,6 +111,7 @@
         "$ref": "#/body"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "",
@@ -103,10 +123,18 @@
         "$ref": "#/body"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "Some text before",
-      "text": "Some text before"
+      "text": "Some text before",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      }
     },
     {
       "self_ref": "#/texts/4",
@@ -114,6 +142,7 @@
         "$ref": "#/body"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "",
@@ -125,6 +154,7 @@
         "$ref": "#/body"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "",
@@ -136,10 +166,18 @@
         "$ref": "#/body"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "Some text after",
-      "text": "Some text after"
+      "text": "Some text after",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      }
     }
   ],
   "pictures": [],
@@ -150,6 +188,7 @@
         "$ref": "#/body"
       },
       "children": [],
+      "content_layer": "body",
       "label": "table",
       "prov": [],
       "captions": [],
@@ -165,7 +204,7 @@
             "start_col_offset_idx": 0,
             "end_col_offset_idx": 1,
             "text": "Tab1",
-            "column_header": false,
+            "column_header": true,
             "row_header": false,
             "row_section": false
           },
@@ -177,7 +216,7 @@
             "start_col_offset_idx": 1,
             "end_col_offset_idx": 2,
             "text": "Tab2",
-            "column_header": false,
+            "column_header": true,
             "row_header": false,
             "row_section": false
           },
@@ -189,7 +228,7 @@
             "start_col_offset_idx": 2,
             "end_col_offset_idx": 3,
             "text": "Tab3",
-            "column_header": false,
+            "column_header": true,
             "row_header": false,
             "row_section": false
           },
@@ -278,7 +317,7 @@
               "start_col_offset_idx": 0,
               "end_col_offset_idx": 1,
               "text": "Tab1",
-              "column_header": false,
+              "column_header": true,
               "row_header": false,
               "row_section": false
             },
@@ -290,7 +329,7 @@
               "start_col_offset_idx": 1,
               "end_col_offset_idx": 2,
               "text": "Tab2",
-              "column_header": false,
+              "column_header": true,
               "row_header": false,
               "row_section": false
             },
@@ -302,7 +341,7 @@
               "start_col_offset_idx": 2,
               "end_col_offset_idx": 3,
               "text": "Tab3",
-              "column_header": false,
+              "column_header": true,
               "row_header": false,
               "row_section": false
             }
@@ -384,9 +423,11 @@
             }
           ]
         ]
-      }
+      },
+      "annotations": []
     }
   ],
   "key_value_items": [],
+  "form_items": [],
   "pages": {}
 }

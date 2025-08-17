@@ -1,7 +1,10 @@
 import re
+from collections import Counter
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable, List, Literal, Optional, Tuple, Union
+from typing import List, Literal, Optional, Tuple, Union
 
+import numpy as np
 from docling_core.types.doc import (
     CodeItem,
     DocItemLabel,
@@ -10,12 +13,13 @@ from docling_core.types.doc import (
     TextItem,
 )
 from docling_core.types.doc.labels import CodeLanguageLabel
-from PIL import Image
+from PIL import Image, ImageOps
 from pydantic import BaseModel
 
+from docling.datamodel.accelerator_options import AcceleratorOptions
 from docling.datamodel.base_models import ItemAndImageEnrichmentElement
-from docling.datamodel.pipeline_options import AcceleratorOptions
 from docling.models.base_model import BaseItemAndImageEnrichmentModel
+from docling.models.utils.hf_model_download import download_hf_model
 from docling.utils.accelerator_utils import decide_device
 
 
@@ -61,14 +65,15 @@ class CodeFormulaModel(BaseItemAndImageEnrichmentModel):
         Processes the given batch of elements and enriches them with predictions.
     """
 
+    _model_repo_folder = "ds4sd--CodeFormula"
     elements_batch_size = 5
     images_scale = 1.66  # = 120 dpi, aligned with training data resolution
-    expansion_factor = 0.03
+    expansion_factor = 0.18
 
     def __init__(
         self,
         enabled: bool,
-        artifacts_path: Optional[Union[Path, str]],
+        artifacts_path: Optional[Path],
         options: CodeFormulaModelOptions,
         accelerator_options: AcceleratorOptions,
     ):
@@ -97,32 +102,29 @@ class CodeFormulaModel(BaseItemAndImageEnrichmentModel):
             )
 
             if artifacts_path is None:
-                artifacts_path = self.download_models_hf()
+                artifacts_path = self.download_models()
             else:
-                artifacts_path = Path(artifacts_path)
+                artifacts_path = artifacts_path / self._model_repo_folder
 
             self.code_formula_model = CodeFormulaPredictor(
-                artifacts_path=artifacts_path,
+                artifacts_path=str(artifacts_path),
                 device=device,
                 num_threads=accelerator_options.num_threads,
             )
 
     @staticmethod
-    def download_models_hf(
-        local_dir: Optional[Path] = None, force: bool = False
+    def download_models(
+        local_dir: Optional[Path] = None,
+        force: bool = False,
+        progress: bool = False,
     ) -> Path:
-        from huggingface_hub import snapshot_download
-        from huggingface_hub.utils import disable_progress_bars
-
-        disable_progress_bars()
-        download_path = snapshot_download(
+        return download_hf_model(
             repo_id="ds4sd/CodeFormula",
-            force_download=force,
+            revision="v1.0.2",
             local_dir=local_dir,
-            revision="v1.0.0",
+            force=force,
+            progress=progress,
         )
-
-        return Path(download_path)
 
     def is_processable(self, doc: DoclingDocument, element: NodeItem) -> bool:
         """
@@ -170,7 +172,7 @@ class CodeFormulaModel(BaseItemAndImageEnrichmentModel):
                 - The second element is the extracted language if a match is found;
                 otherwise, `None`.
         """
-        pattern = r"^<_([^>]+)_>\s*(.*)"
+        pattern = r"^<_([^_>]+)_>\s(.*)"
         match = re.match(pattern, input_string, flags=re.DOTALL)
         if match:
             language = str(match.group(1))  # the captured programming language
@@ -201,6 +203,82 @@ class CodeFormulaModel(BaseItemAndImageEnrichmentModel):
         except ValueError:
             return CodeLanguageLabel.UNKNOWN
 
+    def _get_most_frequent_edge_color(self, pil_img: Image.Image):
+        """
+        Compute the most frequent color along the outer edges of a PIL image.
+
+        Parameters
+        ----------
+            pil_img : Image.Image
+                A PIL Image in any mode (L, RGB, RGBA, etc.).
+
+        Returns
+        -------
+            (int) or (tuple): The most common edge color as a scalar (for grayscale) or
+                tuple (for RGB/RGBA).
+        """
+        # Convert to NumPy array for easy pixel access
+        img_np = np.array(pil_img)
+
+        if img_np.ndim == 2:
+            # Grayscale-like image: shape (H, W)
+            # Extract edges: top row, bottom row, left col, right col
+            top = img_np[0, :]  # shape (W,)
+            bottom = img_np[-1, :]  # shape (W,)
+            left = img_np[:, 0]  # shape (H,)
+            right = img_np[:, -1]  # shape (H,)
+
+            # Concatenate all edges
+            edges = np.concatenate([top, bottom, left, right])
+
+            # Count frequencies
+            freq = Counter(edges.tolist())
+            most_common_value, _ = freq.most_common(1)[0]
+            return int(most_common_value)  # single channel color
+
+        else:
+            # Color image: shape (H, W, C)
+            top = img_np[0, :, :]  # shape (W, C)
+            bottom = img_np[-1, :, :]  # shape (W, C)
+            left = img_np[:, 0, :]  # shape (H, C)
+            right = img_np[:, -1, :]  # shape (H, C)
+
+            # Concatenate edges along first axis
+            edges = np.concatenate([top, bottom, left, right], axis=0)
+
+            # Convert each color to a tuple for counting
+            edges_as_tuples = [tuple(pixel) for pixel in edges]
+            freq = Counter(edges_as_tuples)
+            most_common_value, _ = freq.most_common(1)[0]
+            return most_common_value  # e.g. (R, G, B) or (R, G, B, A)
+
+    def _pad_with_most_frequent_edge_color(
+        self, img: Union[Image.Image, np.ndarray], padding: Tuple[int, int, int, int]
+    ):
+        """
+        Pads an image (PIL or NumPy array) using the most frequent edge color.
+
+        Parameters
+        ----------
+            img : Union[Image.Image, np.ndarray]
+                The original image.
+            padding : tuple
+                Padding (left, top, right, bottom) in pixels.
+
+        Returns
+        -------
+            Image.Image: A new PIL image with the specified padding.
+        """
+        if isinstance(img, np.ndarray):
+            pil_img = Image.fromarray(img)
+        else:
+            pil_img = img
+
+        most_freq_color = self._get_most_frequent_edge_color(pil_img)
+
+        padded_img = ImageOps.expand(pil_img, border=padding, fill=most_freq_color)
+        return padded_img
+
     def __call__(
         self,
         doc: DoclingDocument,
@@ -227,13 +305,15 @@ class CodeFormulaModel(BaseItemAndImageEnrichmentModel):
             return
 
         labels: List[str] = []
-        images: List[Image.Image] = []
+        images: List[Union[Image.Image, np.ndarray]] = []
         elements: List[TextItem] = []
         for el in element_batch:
             assert isinstance(el.item, TextItem)
             elements.append(el.item)
             labels.append(el.item.label)
-            images.append(el.image)
+            images.append(
+                self._pad_with_most_frequent_edge_color(el.image, (20, 10, 20, 10))
+            )
 
         outputs = self.code_formula_model.predict(images, labels)
 

@@ -6,18 +6,38 @@ import sys
 import tempfile
 import time
 import warnings
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Annotated, Dict, Iterable, List, Optional, Type
+from typing import Annotated, Dict, List, Optional, Type
 
+import rich.table
 import typer
+from docling_core.transforms.serializer.html import (
+    HTMLDocSerializer,
+    HTMLOutputStyle,
+    HTMLParams,
+)
+from docling_core.transforms.visualizer.layout_visualizer import LayoutVisualizer
 from docling_core.types.doc import ImageRefMode
 from docling_core.utils.file import resolve_source_to_path
 from pydantic import TypeAdapter
+from rich.console import Console
 
 from docling.backend.docling_parse_backend import DoclingParseDocumentBackend
 from docling.backend.docling_parse_v2_backend import DoclingParseV2DocumentBackend
+from docling.backend.docling_parse_v4_backend import DoclingParseV4DocumentBackend
 from docling.backend.pdf_backend import PdfDocumentBackend
 from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
+from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
+from docling.datamodel.asr_model_specs import (
+    WHISPER_BASE,
+    WHISPER_LARGE,
+    WHISPER_MEDIUM,
+    WHISPER_SMALL,
+    WHISPER_TINY,
+    WHISPER_TURBO,
+    AsrModelType,
+)
 from docling.datamodel.base_models import (
     ConversionStatus,
     FormatToExtensions,
@@ -26,29 +46,82 @@ from docling.datamodel.base_models import (
 )
 from docling.datamodel.document import ConversionResult
 from docling.datamodel.pipeline_options import (
-    AcceleratorDevice,
-    AcceleratorOptions,
+    AsrPipelineOptions,
     EasyOcrOptions,
-    OcrEngine,
-    OcrMacOptions,
     OcrOptions,
+    PaginatedPipelineOptions,
     PdfBackend,
     PdfPipelineOptions,
-    RapidOcrOptions,
+    PipelineOptions,
+    ProcessingPipeline,
     TableFormerMode,
-    TesseractCliOcrOptions,
-    TesseractOcrOptions,
+    VlmPipelineOptions,
 )
 from docling.datamodel.settings import settings
-from docling.document_converter import DocumentConverter, FormatOption, PdfFormatOption
+from docling.datamodel.vlm_model_specs import (
+    GRANITE_VISION_OLLAMA,
+    GRANITE_VISION_TRANSFORMERS,
+    SMOLDOCLING_MLX,
+    SMOLDOCLING_TRANSFORMERS,
+    VlmModelType,
+)
+from docling.document_converter import (
+    AudioFormatOption,
+    DocumentConverter,
+    FormatOption,
+    PdfFormatOption,
+)
+from docling.models.factories import get_ocr_factory
+from docling.pipeline.asr_pipeline import AsrPipeline
+from docling.pipeline.vlm_pipeline import VlmPipeline
 
 warnings.filterwarnings(action="ignore", category=UserWarning, module="pydantic|torch")
 warnings.filterwarnings(action="ignore", category=FutureWarning, module="easyocr")
 
 _log = logging.getLogger(__name__)
-from rich.console import Console
 
+console = Console()
 err_console = Console(stderr=True)
+
+ocr_factory_internal = get_ocr_factory(allow_external_plugins=False)
+ocr_engines_enum_internal = ocr_factory_internal.get_enum()
+
+DOCLING_ASCII_ART = r"""
+                             ████ ██████
+                           ███░░██░░░░░██████
+                      ████████░░░░░░░░████████████
+                   ████████░░░░░░░░░░░░░░░░░░████████
+                 ██████░░░░░░░░░░░░░░░░░░░░░░░░░░██████
+              ██████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█████
+            ██████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░█████
+          ██████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██████
+         ██████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██████
+        ██████░░░░░░░   ░░░░░░░░░░░░░░░░░░░░░░   ░░░░░░░██████
+       ██████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██████
+      ██████░░░░░░         ░░░░░░░░░░░░░░░          ░░░░░░██████
+      ███▒██░░░░░   ████     ░░░░░░░░░░░░   ████     ░░░░░██▒███
+     ███▒██░░░░░░  ████      ░░░░░░░░░░░░  ████      ░░░░░██▒████
+     ███▒██░░░░░░  ██     ██ ░░░░░░░░░░░░  ██     ██ ░░░░░██▒▒███
+     ███▒███░░░░░        ██  ░░░░████░░░░        ██  ░░░░░██▒▒███
+    ████▒▒██░░░░░░         ░░░███▒▒▒▒███░░░        ░░░░░░░██▒▒████
+    ████▒▒██░░░░░░░░░░░░░░░░░█▒▒▒▒▒▒▒▒▒▒█░░░░░░░░░░░░░░░░███▒▒████
+    ████▒▒▒██░░░░░░░░░░░░█████  ▒▒▒▒▒▒  ██████░░░░░░░░░░░██▒▒▒████
+     ███▒▒▒▒██░░░░░░░░███▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒███░░░░░░░░██▒▒▒▒███
+     ███▒▒▒▒▒███░░░░░░██▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒██░░░░░░███▒▒▒▒▒███
+     ████▒▒▒▒▒████░░░░░░██████████████████████░░░░░░████▒▒▒▒▒████
+      ███▒▒▒▒▒▒▒▒████░░░░░░░░░░░░░░░░░░░░░░░░░░░████▒▒▒▒▒▒▒▒▒███
+      ████▒▒▒▒▒▒▒▒███░░░░░████████████████████████▒▒▒▒▒▒▒▒▒████
+       ████▒▒▒▒▒▒██░░░░░░█                   █░░░░░██▒▒▒▒▒▒████
+        ████▒▒▒▒█░░░░░░░█   D O C L I N G   █░░░░░░░░██▒▒▒████
+         ████▒▒██░░░░░░█                   █░░░░░░░░░░█▒▒████
+          ██████░░░░░░█   D O C L I N G   █░░░░░░░░░░░██████
+            ████░░░░░█                   █░░░░░░░░░░░░████
+             █████░░█   D O C L I N G   █░░░░░░░░░░░█████
+               █████                   █░░░░░░░░████████
+                 ██   D O C L I N G   █░░░░░░░░█████
+                 █                   █░░░████████
+                █████████████████████████████
+"""
 
 
 app = typer.Typer(
@@ -57,6 +130,12 @@ app = typer.Typer(
     add_completion=False,
     pretty_exceptions_enable=False,
 )
+
+
+def logo_callback(value: bool):
+    if value:
+        print(DOCLING_ASCII_ART)
+        raise typer.Exit()
 
 
 def version_callback(value: bool):
@@ -77,17 +156,36 @@ def version_callback(value: bool):
         raise typer.Exit()
 
 
+def show_external_plugins_callback(value: bool):
+    if value:
+        ocr_factory_all = get_ocr_factory(allow_external_plugins=True)
+        table = rich.table.Table(title="Available OCR engines")
+        table.add_column("Name", justify="right")
+        table.add_column("Plugin")
+        table.add_column("Package")
+        for meta in ocr_factory_all.registered_meta.values():
+            if not meta.module.startswith("docling."):
+                table.add_row(
+                    f"[bold]{meta.kind}[/bold]",
+                    meta.plugin_name,
+                    meta.module.split(".")[0],
+                )
+        rich.print(table)
+        raise typer.Exit()
+
+
 def export_documents(
     conv_results: Iterable[ConversionResult],
     output_dir: Path,
     export_json: bool,
     export_html: bool,
+    export_html_split_page: bool,
+    show_layout: bool,
     export_md: bool,
     export_txt: bool,
     export_doctags: bool,
     image_export_mode: ImageRefMode,
 ):
-
     success_count = 0
     failure_count = 0
 
@@ -109,8 +207,34 @@ def export_documents(
                 fname = output_dir / f"{doc_filename}.html"
                 _log.info(f"writing HTML output to {fname}")
                 conv_res.document.save_as_html(
-                    filename=fname, image_mode=image_export_mode
+                    filename=fname, image_mode=image_export_mode, split_page_view=False
                 )
+
+            # Export HTML format:
+            if export_html_split_page:
+                fname = output_dir / f"{doc_filename}.html"
+                _log.info(f"writing HTML output to {fname}")
+                if show_layout:
+                    ser = HTMLDocSerializer(
+                        doc=conv_res.document,
+                        params=HTMLParams(
+                            image_mode=image_export_mode,
+                            output_style=HTMLOutputStyle.SPLIT_PAGE,
+                        ),
+                    )
+                    visualizer = LayoutVisualizer()
+                    visualizer.params.show_label = False
+                    ser_res = ser.serialize(
+                        visualizer=visualizer,
+                    )
+                    with open(fname, "w") as fw:
+                        fw.write(ser_res.text)
+                else:
+                    conv_res.document.save_as_html(
+                        filename=fname,
+                        image_mode=image_export_mode,
+                        split_page_view=True,
+                    )
 
             # Export Text format:
             if export_txt:
@@ -138,6 +262,12 @@ def export_documents(
 
         else:
             _log.warning(f"Document {conv_res.input.file} failed to convert.")
+            if _log.isEnabledFor(logging.INFO):
+                for err in conv_res.errors:
+                    _log.info(
+                        f"  [Failure Detail] Component: {err.component_type}, "
+                        f"Module: {err.module_name}, Message: {err.error_message}"
+                    )
             failure_count += 1
 
     _log.info(
@@ -152,7 +282,7 @@ def _split_list(raw: Optional[str]) -> Optional[List[str]]:
 
 
 @app.command(no_args_is_help=True)
-def convert(
+def convert(  # noqa: C901
     input_sources: Annotated[
         List[str],
         typer.Argument(
@@ -169,6 +299,13 @@ def convert(
     to_formats: List[OutputFormat] = typer.Option(
         None, "--to", help="Specify output formats. Defaults to Markdown."
     ),
+    show_layout: Annotated[
+        bool,
+        typer.Option(
+            ...,
+            help="If enabled, the page images will show the bounding-boxes of the items.",
+        ),
+    ] = False,
     headers: str = typer.Option(
         None,
         "--headers",
@@ -181,6 +318,18 @@ def convert(
             help="Image export mode for the document (only in case of JSON, Markdown or HTML). With `placeholder`, only the position of the image is marked in the output. In `embedded` mode, the image is embedded as base64 encoded string. In `referenced` mode, the image is exported in PNG format and referenced from the main exported document.",
         ),
     ] = ImageRefMode.EMBEDDED,
+    pipeline: Annotated[
+        ProcessingPipeline,
+        typer.Option(..., help="Choose the pipeline to process PDF or image files."),
+    ] = ProcessingPipeline.STANDARD,
+    vlm_model: Annotated[
+        VlmModelType,
+        typer.Option(..., help="Choose the VLM model to use with PDF or image files."),
+    ] = VlmModelType.SMOLDOCLING,
+    asr_model: Annotated[
+        AsrModelType,
+        typer.Option(..., help="Choose the ASR model to use with audio/video files."),
+    ] = AsrModelType.WHISPER_TINY,
     ocr: Annotated[
         bool,
         typer.Option(
@@ -195,8 +344,16 @@ def convert(
         ),
     ] = False,
     ocr_engine: Annotated[
-        OcrEngine, typer.Option(..., help="The OCR engine to use.")
-    ] = OcrEngine.EASYOCR,
+        str,
+        typer.Option(
+            ...,
+            help=(
+                f"The OCR engine to use. When --allow-external-plugins is *not* set, the available values are: "
+                f"{', '.join(o.value for o in ocr_engines_enum_internal)}. "
+                f"Use the option --show-external-plugins to see the options allowed with external plugins."
+            ),
+        ),
+    ] = EasyOcrOptions.kind,
     ocr_lang: Annotated[
         Optional[str],
         typer.Option(
@@ -210,7 +367,7 @@ def convert(
     table_mode: Annotated[
         TableFormerMode,
         typer.Option(..., help="The mode to use in the table structure model."),
-    ] = TableFormerMode.FAST,
+    ] = TableFormerMode.ACCURATE,
     enrich_code: Annotated[
         bool,
         typer.Option(..., help="Enable the code enrichment model in the pipeline."),
@@ -226,16 +383,41 @@ def convert(
             help="Enable the picture classification enrichment model in the pipeline.",
         ),
     ] = False,
+    enrich_picture_description: Annotated[
+        bool,
+        typer.Option(..., help="Enable the picture description model in the pipeline."),
+    ] = False,
     artifacts_path: Annotated[
         Optional[Path],
         typer.Option(..., help="If provided, the location of the model artifacts."),
     ] = None,
+    enable_remote_services: Annotated[
+        bool,
+        typer.Option(
+            ..., help="Must be enabled when using models connecting to remote services."
+        ),
+    ] = False,
+    allow_external_plugins: Annotated[
+        bool,
+        typer.Option(
+            ..., help="Must be enabled for loading modules from third-party plugins."
+        ),
+    ] = False,
+    show_external_plugins: Annotated[
+        bool,
+        typer.Option(
+            ...,
+            help="List the third-party plugins which are available when the option --allow-external-plugins is set.",
+            callback=show_external_plugins_callback,
+            is_eager=True,
+        ),
+    ] = False,
     abort_on_error: Annotated[
         bool,
         typer.Option(
             ...,
             "--abort-on-error/--no-abort-on-error",
-            help="If enabled, the bitmap content will be processed using OCR.",
+            help="If enabled, the processing will be aborted when the first error is encountered.",
         ),
     ] = False,
     output: Annotated[
@@ -288,13 +470,21 @@ def convert(
     device: Annotated[
         AcceleratorDevice, typer.Option(..., help="Accelerator device")
     ] = AcceleratorDevice.AUTO,
+    docling_logo: Annotated[
+        Optional[bool],
+        typer.Option(
+            "--logo", callback=logo_callback, is_eager=True, help="Docling logo"
+        ),
+    ] = None,
 ):
+    log_format = "%(asctime)s\t%(levelname)s\t%(name)s: %(message)s"
+
     if verbose == 0:
-        logging.basicConfig(level=logging.WARNING)
+        logging.basicConfig(level=logging.WARNING, format=log_format)
     elif verbose == 1:
-        logging.basicConfig(level=logging.INFO)
-    elif verbose == 2:
-        logging.basicConfig(level=logging.DEBUG)
+        logging.basicConfig(level=logging.INFO, format=log_format)
+    else:
+        logging.basicConfig(level=logging.DEBUG, format=log_format)
 
     settings.debug.visualize_cells = debug_visualize_cells
     settings.debug.visualize_layout = debug_visualize_layout
@@ -302,7 +492,7 @@ def convert(
     settings.debug.visualize_ocr = debug_visualize_ocr
 
     if from_formats is None:
-        from_formats = [e for e in InputFormat]
+        from_formats = list(InputFormat)
 
     parsed_headers: Optional[Dict[str, str]] = None
     if headers is not None:
@@ -353,70 +543,143 @@ def convert(
 
         export_json = OutputFormat.JSON in to_formats
         export_html = OutputFormat.HTML in to_formats
+        export_html_split_page = OutputFormat.HTML_SPLIT_PAGE in to_formats
         export_md = OutputFormat.MARKDOWN in to_formats
         export_txt = OutputFormat.TEXT in to_formats
         export_doctags = OutputFormat.DOCTAGS in to_formats
 
-        if ocr_engine == OcrEngine.EASYOCR:
-            ocr_options: OcrOptions = EasyOcrOptions(force_full_page_ocr=force_ocr)
-        elif ocr_engine == OcrEngine.TESSERACT_CLI:
-            ocr_options = TesseractCliOcrOptions(force_full_page_ocr=force_ocr)
-        elif ocr_engine == OcrEngine.TESSERACT:
-            ocr_options = TesseractOcrOptions(force_full_page_ocr=force_ocr)
-        elif ocr_engine == OcrEngine.OCRMAC:
-            ocr_options = OcrMacOptions(force_full_page_ocr=force_ocr)
-        elif ocr_engine == OcrEngine.RAPIDOCR:
-            ocr_options = RapidOcrOptions(force_full_page_ocr=force_ocr)
-        else:
-            raise RuntimeError(f"Unexpected OCR engine type {ocr_engine}")
+        ocr_factory = get_ocr_factory(allow_external_plugins=allow_external_plugins)
+        ocr_options: OcrOptions = ocr_factory.create_options(  # type: ignore
+            kind=ocr_engine,
+            force_full_page_ocr=force_ocr,
+        )
 
         ocr_lang_list = _split_list(ocr_lang)
         if ocr_lang_list is not None:
             ocr_options.lang = ocr_lang_list
 
         accelerator_options = AcceleratorOptions(num_threads=num_threads, device=device)
-        pipeline_options = PdfPipelineOptions(
-            accelerator_options=accelerator_options,
-            do_ocr=ocr,
-            ocr_options=ocr_options,
-            do_table_structure=True,
-            do_code_enrichment=enrich_code,
-            do_formula_enrichment=enrich_formula,
-            do_picture_classification=enrich_picture_classes,
-            document_timeout=document_timeout,
-        )
-        pipeline_options.table_structure_options.do_cell_matching = (
-            True  # do_cell_matching
-        )
-        pipeline_options.table_structure_options.mode = table_mode
+        # pipeline_options: PaginatedPipelineOptions
+        pipeline_options: PipelineOptions
 
-        if image_export_mode != ImageRefMode.PLACEHOLDER:
-            pipeline_options.generate_page_images = True
-            pipeline_options.generate_picture_images = (
-                True  # FIXME: to be deprecated in verson 3
+        format_options: Dict[InputFormat, FormatOption] = {}
+
+        if pipeline == ProcessingPipeline.STANDARD:
+            pipeline_options = PdfPipelineOptions(
+                allow_external_plugins=allow_external_plugins,
+                enable_remote_services=enable_remote_services,
+                accelerator_options=accelerator_options,
+                do_ocr=ocr,
+                ocr_options=ocr_options,
+                do_table_structure=True,
+                do_code_enrichment=enrich_code,
+                do_formula_enrichment=enrich_formula,
+                do_picture_description=enrich_picture_description,
+                do_picture_classification=enrich_picture_classes,
+                document_timeout=document_timeout,
             )
-            pipeline_options.images_scale = 2
+            pipeline_options.table_structure_options.do_cell_matching = (
+                True  # do_cell_matching
+            )
+            pipeline_options.table_structure_options.mode = table_mode
+
+            if image_export_mode != ImageRefMode.PLACEHOLDER:
+                pipeline_options.generate_page_images = True
+                pipeline_options.generate_picture_images = (
+                    True  # FIXME: to be deprecated in version 3
+                )
+                pipeline_options.images_scale = 2
+
+            backend: Type[PdfDocumentBackend]
+            if pdf_backend == PdfBackend.DLPARSE_V1:
+                backend = DoclingParseDocumentBackend
+            elif pdf_backend == PdfBackend.DLPARSE_V2:
+                backend = DoclingParseV2DocumentBackend
+            elif pdf_backend == PdfBackend.DLPARSE_V4:
+                backend = DoclingParseV4DocumentBackend  # type: ignore
+            elif pdf_backend == PdfBackend.PYPDFIUM2:
+                backend = PyPdfiumDocumentBackend  # type: ignore
+            else:
+                raise RuntimeError(f"Unexpected PDF backend type {pdf_backend}")
+
+            pdf_format_option = PdfFormatOption(
+                pipeline_options=pipeline_options,
+                backend=backend,  # pdf_backend
+            )
+
+            format_options = {
+                InputFormat.PDF: pdf_format_option,
+                InputFormat.IMAGE: pdf_format_option,
+            }
+
+        elif pipeline == ProcessingPipeline.VLM:
+            pipeline_options = VlmPipelineOptions(
+                enable_remote_services=enable_remote_services,
+            )
+
+            if vlm_model == VlmModelType.GRANITE_VISION:
+                pipeline_options.vlm_options = GRANITE_VISION_TRANSFORMERS
+            elif vlm_model == VlmModelType.GRANITE_VISION_OLLAMA:
+                pipeline_options.vlm_options = GRANITE_VISION_OLLAMA
+            elif vlm_model == VlmModelType.SMOLDOCLING:
+                pipeline_options.vlm_options = SMOLDOCLING_TRANSFORMERS
+                if sys.platform == "darwin":
+                    try:
+                        import mlx_vlm
+
+                        pipeline_options.vlm_options = SMOLDOCLING_MLX
+                    except ImportError:
+                        _log.warning(
+                            "To run SmolDocling faster, please install mlx-vlm:\n"
+                            "pip install mlx-vlm"
+                        )
+
+            pdf_format_option = PdfFormatOption(
+                pipeline_cls=VlmPipeline, pipeline_options=pipeline_options
+            )
+
+            format_options = {
+                InputFormat.PDF: pdf_format_option,
+                InputFormat.IMAGE: pdf_format_option,
+            }
+
+        elif pipeline == ProcessingPipeline.ASR:
+            pipeline_options = AsrPipelineOptions(
+                # enable_remote_services=enable_remote_services,
+                # artifacts_path = artifacts_path
+            )
+
+            if asr_model == AsrModelType.WHISPER_TINY:
+                pipeline_options.asr_options = WHISPER_TINY
+            elif asr_model == AsrModelType.WHISPER_SMALL:
+                pipeline_options.asr_options = WHISPER_SMALL
+            elif asr_model == AsrModelType.WHISPER_MEDIUM:
+                pipeline_options.asr_options = WHISPER_MEDIUM
+            elif asr_model == AsrModelType.WHISPER_BASE:
+                pipeline_options.asr_options = WHISPER_BASE
+            elif asr_model == AsrModelType.WHISPER_LARGE:
+                pipeline_options.asr_options = WHISPER_LARGE
+            elif asr_model == AsrModelType.WHISPER_TURBO:
+                pipeline_options.asr_options = WHISPER_TURBO
+            else:
+                _log.error(f"{asr_model} is not known")
+                raise ValueError(f"{asr_model} is not known")
+
+            _log.info(f"pipeline_options: {pipeline_options}")
+
+            audio_format_option = AudioFormatOption(
+                pipeline_cls=AsrPipeline,
+                pipeline_options=pipeline_options,
+            )
+
+            format_options = {
+                InputFormat.AUDIO: audio_format_option,
+            }
 
         if artifacts_path is not None:
             pipeline_options.artifacts_path = artifacts_path
+            # audio_pipeline_options.artifacts_path = artifacts_path
 
-        if pdf_backend == PdfBackend.DLPARSE_V1:
-            backend: Type[PdfDocumentBackend] = DoclingParseDocumentBackend
-        elif pdf_backend == PdfBackend.DLPARSE_V2:
-            backend = DoclingParseV2DocumentBackend
-        elif pdf_backend == PdfBackend.PYPDFIUM2:
-            backend = PyPdfiumDocumentBackend
-        else:
-            raise RuntimeError(f"Unexpected PDF backend type {pdf_backend}")
-
-        pdf_format_option = PdfFormatOption(
-            pipeline_options=pipeline_options,
-            backend=backend,  # pdf_backend
-        )
-        format_options: Dict[InputFormat, FormatOption] = {
-            InputFormat.PDF: pdf_format_option,
-            InputFormat.IMAGE: pdf_format_option,
-        }
         doc_converter = DocumentConverter(
             allowed_formats=from_formats,
             format_options=format_options,
@@ -424,6 +687,7 @@ def convert(
 
         start_time = time.time()
 
+        _log.info(f"paths: {input_doc_paths}")
         conv_results = doc_converter.convert_all(
             input_doc_paths, headers=parsed_headers, raises_on_error=abort_on_error
         )
@@ -434,6 +698,8 @@ def convert(
             output_dir=output,
             export_json=export_json,
             export_html=export_html,
+            export_html_split_page=export_html_split_page,
+            show_layout=show_layout,
             export_md=export_md,
             export_txt=export_txt,
             export_doctags=export_doctags,

@@ -25,9 +25,8 @@ def main():
         Path("tests/data/docx/lorem_ipsum.docx"),
         Path("tests/data/pptx/powerpoint_sample.pptx"),
         Path("tests/data/2305.03393v1-pg9-img.png"),
-        Path("tests/data/2206.01062.pdf"),
-        Path("tests/data/test_01.asciidoc"),
-        Path("tests/data/test_01.asciidoc"),
+        Path("tests/data/pdf/2206.01062.pdf"),
+        Path("tests/data/asciidoc/test_01.asciidoc"),
     ]
 
     ## for defaults use:
@@ -44,6 +43,7 @@ def main():
                 InputFormat.HTML,
                 InputFormat.PPTX,
                 InputFormat.ASCIIDOC,
+                InputFormat.CSV,
                 InputFormat.MD,
             ],  # whitelist formats, non-matching files are ignored.
             format_options={
@@ -63,7 +63,7 @@ def main():
         out_path = Path("scratch")
         print(
             f"Document {res.input.file.name} converted."
-            f"\nSaved markdown output to: {str(out_path)}"
+            f"\nSaved markdown output to: {out_path!s}"
         )
         _log.debug(res.document._export_to_indented_text(max_text_len=16))
         # Export Docling document format to markdowndoc:

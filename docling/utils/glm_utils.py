@@ -15,6 +15,7 @@ from docling_core.types.doc import (
     TableCell,
     TableData,
 )
+from docling_core.types.doc.document import ContentLayer
 
 
 def resolve_item(paths, obj):
@@ -28,7 +29,7 @@ def resolve_item(paths, obj):
 
     try:
         key = int(paths[0])
-    except:
+    except Exception:
         key = paths[0]
 
     if len(paths) == 1:
@@ -66,7 +67,7 @@ def _flatten_table_grid(grid: List[List[dict]]) -> List[dict]:
     return unique_objects
 
 
-def to_docling_document(doc_glm, update_name_label=False) -> DoclingDocument:
+def to_docling_document(doc_glm, update_name_label=False) -> DoclingDocument:  # noqa: C901
     origin = DocumentOrigin(
         mimetype="application/pdf",
         filename=doc_glm["file-info"]["filename"],
@@ -311,6 +312,15 @@ def to_docling_document(doc_glm, update_name_label=False) -> DoclingDocument:
                 current_list = None
 
                 doc.add_text(label=DocItemLabel.FORMULA, text="", orig=text, prov=prov)
+            elif label in [DocItemLabel.PAGE_HEADER, DocItemLabel.PAGE_FOOTER]:
+                current_list = None
+
+                doc.add_text(
+                    label=DocItemLabel(name_label),
+                    text=text,
+                    prov=prov,
+                    content_layer=ContentLayer.FURNITURE,
+                )
             else:
                 current_list = None
 

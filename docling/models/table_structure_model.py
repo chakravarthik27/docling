@@ -1,31 +1,39 @@
 import copy
+import warnings
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
+from typing import Optional
 
 import numpy
 from docling_core.types.doc import BoundingBox, DocItemLabel, TableCell
-from docling_ibm_models.tableformer.data_management.tf_predictor import TFPredictor
+from docling_core.types.doc.page import (
+    BoundingRectangle,
+    TextCellUnit,
+)
 from PIL import ImageDraw
 
+from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
 from docling.datamodel.base_models import Page, Table, TableStructurePrediction
 from docling.datamodel.document import ConversionResult
 from docling.datamodel.pipeline_options import (
-    AcceleratorDevice,
-    AcceleratorOptions,
     TableFormerMode,
     TableStructureOptions,
 )
 from docling.datamodel.settings import settings
 from docling.models.base_model import BasePageModel
+from docling.models.utils.hf_model_download import download_hf_model
 from docling.utils.accelerator_utils import decide_device
 from docling.utils.profiling import TimeRecorder
 
 
 class TableStructureModel(BasePageModel):
+    _model_repo_folder = "ds4sd--docling-models"
+    _model_path = "model_artifacts/tableformer"
+
     def __init__(
         self,
         enabled: bool,
-        artifacts_path: Path,
+        artifacts_path: Optional[Path],
         options: TableStructureOptions,
         accelerator_options: AcceleratorOptions,
     ):
@@ -35,6 +43,25 @@ class TableStructureModel(BasePageModel):
 
         self.enabled = enabled
         if self.enabled:
+            if artifacts_path is None:
+                artifacts_path = self.download_models() / self._model_path
+            else:
+                # will become the default in the future
+                if (artifacts_path / self._model_repo_folder).exists():
+                    artifacts_path = (
+                        artifacts_path / self._model_repo_folder / self._model_path
+                    )
+                elif (artifacts_path / self._model_path).exists():
+                    warnings.warn(
+                        "The usage of artifacts_path containing directly "
+                        f"{self._model_path} is deprecated. Please point "
+                        "the artifacts_path to the parent containing "
+                        f"the {self._model_repo_folder} folder.",
+                        DeprecationWarning,
+                        stacklevel=3,
+                    )
+                    artifacts_path = artifacts_path / self._model_path
+
             if self.mode == TableFormerMode.ACCURATE:
                 artifacts_path = artifacts_path / "accurate"
             else:
@@ -42,6 +69,9 @@ class TableStructureModel(BasePageModel):
 
             # Third Party
             import docling_ibm_models.tableformer.common as c
+            from docling_ibm_models.tableformer.data_management.tf_predictor import (
+                TFPredictor,
+            )
 
             device = decide_device(accelerator_options.device)
 
@@ -57,6 +87,18 @@ class TableStructureModel(BasePageModel):
                 self.tm_config, device, accelerator_options.num_threads
             )
             self.scale = 2.0  # Scale up table input images to 144 dpi
+
+    @staticmethod
+    def download_models(
+        local_dir: Optional[Path] = None, force: bool = False, progress: bool = False
+    ) -> Path:
+        return download_hf_model(
+            repo_id="ds4sd/docling-models",
+            revision="v2.2.0",
+            local_dir=local_dir,
+            force=force,
+            progress=progress,
+        )
 
     def draw_table_and_cells(
         self,
@@ -87,7 +129,7 @@ class TableStructureModel(BasePageModel):
             draw.rectangle([(x0, y0), (x1, y1)], outline="red")
 
             for cell in table_element.cluster.cells:
-                x0, y0, x1, y1 = cell.bbox.as_tuple()
+                x0, y0, x1, y1 = cell.rect.to_bounding_box().as_tuple()
                 x0 *= scale_x
                 x1 *= scale_x
                 y0 *= scale_x
@@ -128,7 +170,6 @@ class TableStructureModel(BasePageModel):
     def __call__(
         self, conv_res: ConversionResult, page_batch: Iterable[Page]
     ) -> Iterable[Page]:
-
         if not self.enabled:
             yield from page_batch
             return
@@ -139,7 +180,6 @@ class TableStructureModel(BasePageModel):
                 yield page
             else:
                 with TimeRecorder(conv_res, "table_structure"):
-
                     assert page.predictions.layout is not None
                     assert page.size is not None
 
@@ -175,17 +215,36 @@ class TableStructureModel(BasePageModel):
 
                     if len(table_bboxes):
                         for table_cluster, tbl_box in in_tables:
-
+                            # Check if word-level cells are available from backend:
+                            sp = page._backend.get_segmented_page()
+                            if sp is not None:
+                                tcells = sp.get_cells_in_bbox(
+                                    cell_unit=TextCellUnit.WORD,
+                                    bbox=table_cluster.bbox,
+                                )
+                                if len(tcells) == 0:
+                                    # In case word-level cells yield empty
+                                    tcells = table_cluster.cells
+                            else:
+                                # Otherwise - we use normal (line/phrase) cells
+                                tcells = table_cluster.cells
                             tokens = []
-                            for c in table_cluster.cells:
-                                # Only allow non empty stings (spaces) into the cells of a table
+                            for c in tcells:
+                                # Only allow non empty strings (spaces) into the cells of a table
                                 if len(c.text.strip()) > 0:
                                     new_cell = copy.deepcopy(c)
-                                    new_cell.bbox = new_cell.bbox.scaled(
-                                        scale=self.scale
+                                    new_cell.rect = BoundingRectangle.from_bounding_box(
+                                        new_cell.rect.to_bounding_box().scaled(
+                                            scale=self.scale
+                                        )
                                     )
-
-                                    tokens.append(new_cell.model_dump())
+                                    tokens.append(
+                                        {
+                                            "id": new_cell.index,
+                                            "text": new_cell.text,
+                                            "bbox": new_cell.rect.to_bounding_box().model_dump(),
+                                        }
+                                    )
                             page_input["tokens"] = tokens
 
                             tf_output = self.tf_predictor.multi_table_predict(
@@ -194,7 +253,6 @@ class TableStructureModel(BasePageModel):
                             table_out = tf_output[0]
                             table_cells = []
                             for element in table_out["tf_responses"]:
-
                                 if not self.do_cell_matching:
                                     the_bbox = BoundingBox.model_validate(
                                         element["bbox"]
@@ -205,7 +263,7 @@ class TableStructureModel(BasePageModel):
                                     element["bbox"]["token"] = text_piece
 
                                 tc = TableCell.model_validate(element)
-                                if self.do_cell_matching and tc.bbox is not None:
+                                if tc.bbox is not None:
                                     tc.bbox = tc.bbox.scaled(1 / self.scale)
                                 table_cells.append(tc)
 

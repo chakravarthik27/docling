@@ -1,12 +1,13 @@
+import csv
 import logging
 import re
+from collections.abc import Iterable
 from enum import Enum
 from io import BytesIO
 from pathlib import Path, PurePath
 from typing import (
     TYPE_CHECKING,
     Dict,
-    Iterable,
     List,
     Literal,
     Optional,
@@ -16,6 +17,8 @@ from typing import (
 )
 
 import filetype
+
+# DO NOT REMOVE; explicitly exposed from this location
 from docling_core.types.doc import (
     DocItem,
     DocItemLabel,
@@ -34,17 +37,17 @@ from docling_core.types.legacy_doc.base import (
     PageReference,
     Prov,
     Ref,
+    Table as DsSchemaTable,
+    TableCell,
 )
-from docling_core.types.legacy_doc.base import Table as DsSchemaTable
-from docling_core.types.legacy_doc.base import TableCell
 from docling_core.types.legacy_doc.document import (
     CCSDocumentDescription as DsDocumentDescription,
+    CCSFileInfoObject as DsFileInfoObject,
+    ExportedCCSDocument as DsDocument,
 )
-from docling_core.types.legacy_doc.document import CCSFileInfoObject as DsFileInfoObject
-from docling_core.types.legacy_doc.document import ExportedCCSDocument as DsDocument
 from docling_core.utils.file import resolve_source_to_stream
 from docling_core.utils.legacy import docling_document_to_legacy
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing_extensions import deprecated
 
 from docling.backend.abstract_backend import (
@@ -53,6 +56,7 @@ from docling.backend.abstract_backend import (
 )
 from docling.datamodel.base_models import (
     AssembledUnit,
+    ConfidenceReport,
     ConversionStatus,
     DocumentStream,
     ErrorItem,
@@ -64,7 +68,7 @@ from docling.datamodel.base_models import (
 )
 from docling.datamodel.settings import DocumentLimits
 from docling.utils.profiling import ProfilingItem
-from docling.utils.utils import create_file_hash, create_hash
+from docling.utils.utils import create_file_hash
 
 if TYPE_CHECKING:
     from docling.document_converter import FormatOption
@@ -133,9 +137,9 @@ class InputDocument(BaseModel):
                     self._init_doc(backend, path_or_stream)
 
             elif isinstance(path_or_stream, BytesIO):
-                assert (
-                    filename is not None
-                ), "Can't construct InputDocument from stream without providing filename arg."
+                assert filename is not None, (
+                    "Can't construct InputDocument from stream without providing filename arg."
+                )
                 self.file = PurePath(filename)
                 self.filesize = path_or_stream.getbuffer().nbytes
 
@@ -198,6 +202,7 @@ class ConversionResult(BaseModel):
     pages: List[Page] = []
     assembled: AssembledUnit = AssembledUnit()
     timings: Dict[str, ProfilingItem] = {}
+    confidence: ConfidenceReport = Field(default_factory=ConfidenceReport)
 
     document: DoclingDocument = _EMPTY_DOCLING_DOC
 
@@ -227,7 +232,6 @@ class _DummyBackend(AbstractDocumentBackend):
 
 
 class _DocumentConversionInput(BaseModel):
-
     path_or_stream_iterator: Iterable[Union[Path, str, DocumentStream]]
     headers: Optional[Dict[str, str]] = None
     limits: Optional[DocumentLimits] = DocumentLimits()
@@ -245,7 +249,7 @@ class _DocumentConversionInput(BaseModel):
             backend: Type[AbstractDocumentBackend]
             if format not in format_options.keys():
                 _log.error(
-                    f"Input document {obj.name} does not match any allowed format."
+                    f"Input document {obj.name} with format {format} does not match any allowed format: ({format_options.keys()})"
                 )
                 backend = _DummyBackend
             else:
@@ -282,6 +286,13 @@ class _DocumentConversionInput(BaseModel):
             if mime is None:  # must guess from
                 with obj.open("rb") as f:
                     content = f.read(1024)  # Read first 1KB
+            if mime is not None and mime.lower() == "application/zip":
+                if obj.suffixes[-1].lower() == ".xlsx":
+                    mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                elif obj.suffixes[-1].lower() == ".docx":
+                    mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                elif obj.suffixes[-1].lower() == ".pptx":
+                    mime = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 
         elif isinstance(obj, DocumentStream):
             content = obj.stream.read(8192)
@@ -293,11 +304,22 @@ class _DocumentConversionInput(BaseModel):
                     if ("." in obj.name and not obj.name.startswith("."))
                     else ""
                 )
-                mime = _DocumentConversionInput._mime_from_extension(ext)
+                mime = _DocumentConversionInput._mime_from_extension(ext.lower())
+            if mime is not None and mime.lower() == "application/zip":
+                objname = obj.name.lower()
+                if objname.endswith(".xlsx"):
+                    mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                elif objname.endswith(".docx"):
+                    mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                elif objname.endswith(".pptx"):
+                    mime = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 
         mime = mime or _DocumentConversionInput._detect_html_xhtml(content)
+        mime = mime or _DocumentConversionInput._detect_csv(content)
         mime = mime or "text/plain"
         formats = MimeTypeToFormat.get(mime, [])
+        _log.info(f"detected formats: {formats}")
+
         if formats:
             if len(formats) == 1 and mime not in ("text/plain"):
                 return formats[0]
@@ -314,9 +336,9 @@ class _DocumentConversionInput(BaseModel):
     ) -> Optional[InputFormat]:
         """Guess the input format of a document by checking part of its content."""
         input_format: Optional[InputFormat] = None
-        content_str = content.decode("utf-8")
 
         if mime == "application/xml":
+            content_str = content.decode("utf-8")
             match_doctype = re.search(r"<!DOCTYPE [^>]+>", content_str)
             if match_doctype:
                 xml_doctype = match_doctype.group()
@@ -331,13 +353,14 @@ class _DocumentConversionInput(BaseModel):
                 ):
                     input_format = InputFormat.XML_USPTO
 
-                if (
-                    InputFormat.XML_PUBMED in formats
-                    and "/NLM//DTD JATS" in xml_doctype
+                if InputFormat.XML_JATS in formats and (
+                    "JATS-journalpublishing" in xml_doctype
+                    or "JATS-archive" in xml_doctype
                 ):
-                    input_format = InputFormat.XML_PUBMED
+                    input_format = InputFormat.XML_JATS
 
         elif mime == "text/plain":
+            content_str = content.decode("utf-8")
             if InputFormat.XML_USPTO in formats and content_str.startswith("PATN\r\n"):
                 input_format = InputFormat.XML_USPTO
 
@@ -352,10 +375,19 @@ class _DocumentConversionInput(BaseModel):
             mime = FormatToMimeType[InputFormat.HTML][0]
         elif ext in FormatToExtensions[InputFormat.MD]:
             mime = FormatToMimeType[InputFormat.MD][0]
+        elif ext in FormatToExtensions[InputFormat.CSV]:
+            mime = FormatToMimeType[InputFormat.CSV][0]
         elif ext in FormatToExtensions[InputFormat.JSON_DOCLING]:
             mime = FormatToMimeType[InputFormat.JSON_DOCLING][0]
         elif ext in FormatToExtensions[InputFormat.PDF]:
             mime = FormatToMimeType[InputFormat.PDF][0]
+        elif ext in FormatToExtensions[InputFormat.DOCX]:
+            mime = FormatToMimeType[InputFormat.DOCX][0]
+        elif ext in FormatToExtensions[InputFormat.PPTX]:
+            mime = FormatToMimeType[InputFormat.PPTX][0]
+        elif ext in FormatToExtensions[InputFormat.XLSX]:
+            mime = FormatToMimeType[InputFormat.XLSX][0]
+
         return mime
 
     @staticmethod
@@ -382,7 +414,11 @@ class _DocumentConversionInput(BaseModel):
             else:
                 return "application/xml"
 
-        if re.match(r"<!doctype\s+html|<html|<head|<body", content_str):
+        if re.match(
+            r"(<script.*?>.*?</script>\s*)?(<!doctype\s+html|<html|<head|<body)",
+            content_str,
+            re.DOTALL,
+        ):
             return "text/html"
 
         p = re.compile(
@@ -390,5 +426,34 @@ class _DocumentConversionInput(BaseModel):
         )
         if p.search(content_str):
             return "application/xml"
+
+        return None
+
+    @staticmethod
+    def _detect_csv(
+        content: bytes,
+    ) -> Optional[Literal["text/csv"]]:
+        """Guess the mime type of a CSV file from its content.
+
+        Args:
+            content: A short piece of a document from its beginning.
+
+        Returns:
+            The mime type of a CSV file, or None if the content does
+              not match any of the format.
+        """
+        content_str = content.decode("ascii", errors="ignore").strip()
+
+        # Ensure there's at least one newline (CSV is usually multi-line)
+        if "\n" not in content_str:
+            return None
+
+        # Use csv.Sniffer to detect CSV characteristics
+        try:
+            dialect = csv.Sniffer().sniff(content_str)
+            if dialect.delimiter in {",", ";", "\t", "|"}:  # Common delimiters
+                return "text/csv"
+        except csv.Error:
+            return None
 
         return None

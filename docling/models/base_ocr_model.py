@@ -1,31 +1,45 @@
 import copy
 import logging
 from abc import abstractmethod
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable, List
+from typing import TYPE_CHECKING, List, Optional, Type
 
 import numpy as np
 from docling_core.types.doc import BoundingBox, CoordOrigin
+from docling_core.types.doc.page import TextCell
 from PIL import Image, ImageDraw
 from rtree import index
-from scipy.ndimage import binary_dilation, find_objects, label
 
-from docling.datamodel.base_models import Cell, OcrCell, Page
+from docling.datamodel.accelerator_options import AcceleratorOptions
+from docling.datamodel.base_models import Page
 from docling.datamodel.document import ConversionResult
 from docling.datamodel.pipeline_options import OcrOptions
 from docling.datamodel.settings import settings
-from docling.models.base_model import BasePageModel
+from docling.models.base_model import BaseModelWithOptions, BasePageModel
 
 _log = logging.getLogger(__name__)
 
 
-class BaseOcrModel(BasePageModel):
-    def __init__(self, enabled: bool, options: OcrOptions):
+class BaseOcrModel(BasePageModel, BaseModelWithOptions):
+    def __init__(
+        self,
+        *,
+        enabled: bool,
+        artifacts_path: Optional[Path],
+        options: OcrOptions,
+        accelerator_options: AcceleratorOptions,
+    ):
+        # Make sure any delay/error from import occurs on ocr model init and not first use
+        from scipy.ndimage import binary_dilation, find_objects, label
+
         self.enabled = enabled
         self.options = options
 
     # Computes the optimum amount and coordinates of rectangles to OCR on a given page
     def get_ocr_rects(self, page: Page) -> List[BoundingBox]:
+        from scipy.ndimage import binary_dilation, find_objects, label
+
         BITMAP_COVERAGE_TRESHOLD = 0.75
         assert page.size is not None
 
@@ -98,17 +112,21 @@ class BaseOcrModel(BasePageModel):
             return []
 
     # Filters OCR cells by dropping any OCR cell that intersects with an existing programmatic cell.
-    def _filter_ocr_cells(self, ocr_cells, programmatic_cells):
+    def _filter_ocr_cells(
+        self, ocr_cells: List[TextCell], programmatic_cells: List[TextCell]
+    ) -> List[TextCell]:
         # Create R-tree index for programmatic cells
         p = index.Property()
         p.dimension = 2
         idx = index.Index(properties=p)
         for i, cell in enumerate(programmatic_cells):
-            idx.insert(i, cell.bbox.as_tuple())
+            idx.insert(i, cell.rect.to_bounding_box().as_tuple())
 
         def is_overlapping_with_existing_cells(ocr_cell):
             # Query the R-tree to get overlapping rectangles
-            possible_matches_index = list(idx.intersection(ocr_cell.bbox.as_tuple()))
+            possible_matches_index = list(
+                idx.intersection(ocr_cell.rect.to_bounding_box().as_tuple())
+            )
 
             return (
                 len(possible_matches_index) > 0
@@ -119,22 +137,38 @@ class BaseOcrModel(BasePageModel):
         ]
         return filtered_ocr_cells
 
-    def post_process_cells(self, ocr_cells, programmatic_cells):
+    def post_process_cells(self, ocr_cells: List[TextCell], page: Page) -> None:
         r"""
-        Post-process the ocr and programmatic cells and return the final list of of cells
+        Post-process the OCR cells and update the page object.
+        Updates parsed_page.textline_cells directly since page.cells is now read-only.
         """
-        if self.options.force_full_page_ocr:
-            # If a full page OCR is forced, use only the OCR cells
-            cells = [
-                Cell(id=c_ocr.id, text=c_ocr.text, bbox=c_ocr.bbox)
-                for c_ocr in ocr_cells
-            ]
-            return cells
+        # Get existing cells from the read-only property
+        existing_cells = page.cells
 
-        ## Remove OCR cells which overlap with programmatic cells.
-        filtered_ocr_cells = self._filter_ocr_cells(ocr_cells, programmatic_cells)
-        programmatic_cells.extend(filtered_ocr_cells)
-        return programmatic_cells
+        # Combine existing and OCR cells with overlap filtering
+        final_cells = self._combine_cells(existing_cells, ocr_cells)
+
+        assert page.parsed_page is not None
+
+        # Update parsed_page.textline_cells directly
+        page.parsed_page.textline_cells = final_cells
+        page.parsed_page.has_lines = len(final_cells) > 0
+
+    def _combine_cells(
+        self, existing_cells: List[TextCell], ocr_cells: List[TextCell]
+    ) -> List[TextCell]:
+        """Combine existing and OCR cells with filtering and re-indexing."""
+        if self.options.force_full_page_ocr:
+            combined = ocr_cells
+        else:
+            filtered_ocr_cells = self._filter_ocr_cells(ocr_cells, existing_cells)
+            combined = list(existing_cells) + filtered_ocr_cells
+
+        # Re-index in-place
+        for i, cell in enumerate(combined):
+            cell.index = i
+
+        return combined
 
     def draw_ocr_rects_and_cells(self, conv_res, page, ocr_rects, show: bool = False):
         image = copy.deepcopy(page.image)
@@ -156,7 +190,7 @@ class BaseOcrModel(BasePageModel):
 
         # Draw OCR and programmatic cells
         for tc in page.cells:
-            x0, y0, x1, y1 = tc.bbox.as_tuple()
+            x0, y0, x1, y1 = tc.rect.to_bounding_box().as_tuple()
             y0 *= scale_x
             y1 *= scale_y
             x0 *= scale_x
@@ -165,9 +199,8 @@ class BaseOcrModel(BasePageModel):
             if y1 <= y0:
                 y1, y0 = y0, y1
 
-            color = "gray"
-            if isinstance(tc, OcrCell):
-                color = "magenta"
+            color = "magenta" if tc.from_ocr else "gray"
+
             draw.rectangle([(x0, y0), (x1, y1)], outline=color)
 
         if show:
@@ -186,4 +219,9 @@ class BaseOcrModel(BasePageModel):
     def __call__(
         self, conv_res: ConversionResult, page_batch: Iterable[Page]
     ) -> Iterable[Page]:
+        pass
+
+    @classmethod
+    @abstractmethod
+    def get_options_type(cls) -> Type[OcrOptions]:
         pass

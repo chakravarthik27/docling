@@ -4,7 +4,7 @@ from pathlib import Path
 
 from docling_core.types.doc import ImageRefMode, PictureItem, TableItem
 
-from docling.datamodel.base_models import FigureElement, InputFormat, Table
+from docling.datamodel.base_models import InputFormat
 from docling.datamodel.pipeline_options import PdfPipelineOptions
 from docling.document_converter import DocumentConverter, PdfFormatOption
 
@@ -16,7 +16,8 @@ IMAGE_RESOLUTION_SCALE = 2.0
 def main():
     logging.basicConfig(level=logging.INFO)
 
-    input_doc_path = Path("./tests/data/2206.01062.pdf")
+    data_folder = Path(__file__).parent / "../../tests/data"
+    input_doc_path = data_folder / "pdf/2206.01062.pdf"
     output_dir = Path("scratch")
 
     # Important: For operating with page images, we must keep them, otherwise the DocumentConverter

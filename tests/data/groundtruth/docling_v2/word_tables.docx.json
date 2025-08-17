@@ -1,6 +1,6 @@
 {
   "schema_name": "DoclingDocument",
-  "version": "1.0.0",
+  "version": "1.5.0",
   "name": "word_tables",
   "origin": {
     "mimetype": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -10,6 +10,7 @@
   "furniture": {
     "self_ref": "#/furniture",
     "children": [],
+    "content_layer": "furniture",
     "name": "_root_",
     "label": "unspecified"
   },
@@ -20,6 +21,7 @@
         "$ref": "#/groups/0"
       }
     ],
+    "content_layer": "body",
     "name": "_root_",
     "label": "unspecified"
   },
@@ -34,6 +36,7 @@
           "$ref": "#/texts/0"
         }
       ],
+      "content_layer": "body",
       "name": "header-0",
       "label": "section"
     }
@@ -94,6 +97,7 @@
           "$ref": "#/texts/11"
         }
       ],
+      "content_layer": "body",
       "label": "section_header",
       "prov": [],
       "orig": "Test with tables",
@@ -106,10 +110,18 @@
         "$ref": "#/texts/0"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "A uniform table",
-      "text": "A uniform table"
+      "text": "A uniform table",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      }
     },
     {
       "self_ref": "#/texts/2",
@@ -117,6 +129,7 @@
         "$ref": "#/texts/0"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "",
@@ -128,10 +141,18 @@
         "$ref": "#/texts/0"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "A non-uniform table with horizontal spans",
-      "text": "A non-uniform table with horizontal spans"
+      "text": "A non-uniform table with horizontal spans",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      }
     },
     {
       "self_ref": "#/texts/4",
@@ -139,6 +160,7 @@
         "$ref": "#/texts/0"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "",
@@ -150,10 +172,18 @@
         "$ref": "#/texts/0"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "A non-uniform table with horizontal spans in inner columns",
-      "text": "A non-uniform table with horizontal spans in inner columns"
+      "text": "A non-uniform table with horizontal spans in inner columns",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      }
     },
     {
       "self_ref": "#/texts/6",
@@ -161,6 +191,7 @@
         "$ref": "#/texts/0"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "",
@@ -172,10 +203,18 @@
         "$ref": "#/texts/0"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "A non-uniform table with vertical spans",
-      "text": "A non-uniform table with vertical spans"
+      "text": "A non-uniform table with vertical spans",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      }
     },
     {
       "self_ref": "#/texts/8",
@@ -183,6 +222,7 @@
         "$ref": "#/texts/0"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "",
@@ -194,10 +234,18 @@
         "$ref": "#/texts/0"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "A non-uniform table with all kinds of spans and empty cells",
-      "text": "A non-uniform table with all kinds of spans and empty cells"
+      "text": "A non-uniform table with all kinds of spans and empty cells",
+      "formatting": {
+        "bold": false,
+        "italic": false,
+        "underline": false,
+        "strikethrough": false,
+        "script": "baseline"
+      }
     },
     {
       "self_ref": "#/texts/10",
@@ -205,6 +253,7 @@
         "$ref": "#/texts/0"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "",
@@ -216,6 +265,7 @@
         "$ref": "#/texts/0"
       },
       "children": [],
+      "content_layer": "body",
       "label": "paragraph",
       "prov": [],
       "orig": "",
@@ -230,6 +280,7 @@
         "$ref": "#/texts/0"
       },
       "children": [],
+      "content_layer": "body",
       "label": "table",
       "prov": [],
       "captions": [],
@@ -245,7 +296,7 @@
             "start_col_offset_idx": 0,
             "end_col_offset_idx": 1,
             "text": "Header 0.0",
-            "column_header": false,
+            "column_header": true,
             "row_header": false,
             "row_section": false
           },
@@ -257,7 +308,7 @@
             "start_col_offset_idx": 1,
             "end_col_offset_idx": 2,
             "text": "Header 0.1",
-            "column_header": false,
+            "column_header": true,
             "row_header": false,
             "row_section": false
           },
@@ -269,7 +320,7 @@
             "start_col_offset_idx": 2,
             "end_col_offset_idx": 3,
             "text": "Header 0.2",
-            "column_header": false,
+            "column_header": true,
             "row_header": false,
             "row_section": false
           },
@@ -358,7 +409,7 @@
               "start_col_offset_idx": 0,
               "end_col_offset_idx": 1,
               "text": "Header 0.0",
-              "column_header": false,
+              "column_header": true,
               "row_header": false,
               "row_section": false
             },
@@ -370,7 +421,7 @@
               "start_col_offset_idx": 1,
               "end_col_offset_idx": 2,
               "text": "Header 0.1",
-              "column_header": false,
+              "column_header": true,
               "row_header": false,
               "row_section": false
             },
@@ -382,7 +433,7 @@
               "start_col_offset_idx": 2,
               "end_col_offset_idx": 3,
               "text": "Header 0.2",
-              "column_header": false,
+              "column_header": true,
               "row_header": false,
               "row_section": false
             }
@@ -464,7 +515,8 @@
             }
           ]
         ]
-      }
+      },
+      "annotations": []
     },
     {
       "self_ref": "#/tables/1",
@@ -472,6 +524,7 @@
         "$ref": "#/texts/0"
       },
       "children": [],
+      "content_layer": "body",
       "label": "table",
       "prov": [],
       "captions": [],
@@ -487,7 +540,7 @@
             "start_col_offset_idx": 0,
             "end_col_offset_idx": 1,
             "text": "Header 0.0",
-            "column_header": false,
+            "column_header": true,
             "row_header": false,
             "row_section": false
           },
@@ -499,7 +552,7 @@
             "start_col_offset_idx": 1,
             "end_col_offset_idx": 2,
             "text": "Header 0.1",
-            "column_header": false,
+            "column_header": true,
             "row_header": false,
             "row_section": false
           },
@@ -511,7 +564,7 @@
             "start_col_offset_idx": 2,
             "end_col_offset_idx": 3,
             "text": "Header 0.2",
-            "column_header": false,
+            "column_header": true,
             "row_header": false,
             "row_section": false
           },
@@ -576,7 +629,7 @@
               "start_col_offset_idx": 0,
               "end_col_offset_idx": 1,
               "text": "Header 0.0",
-              "column_header": false,
+              "column_header": true,
               "row_header": false,
               "row_section": false
             },
@@ -588,7 +641,7 @@
               "start_col_offset_idx": 1,
               "end_col_offset_idx": 2,
               "text": "Header 0.1",
-              "column_header": false,
+              "column_header": true,
               "row_header": false,
               "row_section": false
             },
@@ -600,7 +653,7 @@
               "start_col_offset_idx": 2,
               "end_col_offset_idx": 3,
               "text": "Header 0.2",
-              "column_header": false,
+              "column_header": true,
               "row_header": false,
               "row_section": false
             }
@@ -682,7 +735,8 @@
             }
           ]
         ]
-      }
+      },
+      "annotations": []
     },
     {
       "self_ref": "#/tables/2",
@@ -690,6 +744,7 @@
         "$ref": "#/texts/0"
       },
       "children": [],
+      "content_layer": "body",
       "label": "table",
       "prov": [],
       "captions": [],
@@ -705,7 +760,7 @@
             "start_col_offset_idx": 0,
             "end_col_offset_idx": 1,
             "text": "Header 0.0",
-            "column_header": false,
+            "column_header": true,
             "row_header": false,
             "row_section": false
           },
@@ -717,7 +772,7 @@
             "start_col_offset_idx": 1,
             "end_col_offset_idx": 2,
             "text": "Header 0.1",
-            "column_header": false,
+            "column_header": true,
             "row_header": false,
             "row_section": false
           },
@@ -729,7 +784,7 @@
             "start_col_offset_idx": 2,
             "end_col_offset_idx": 3,
             "text": "Header 0.2",
-            "column_header": false,
+            "column_header": true,
             "row_header": false,
             "row_section": false
           },
@@ -741,7 +796,7 @@
             "start_col_offset_idx": 3,
             "end_col_offset_idx": 4,
             "text": "Header 0.3",
-            "column_header": false,
+            "column_header": true,
             "row_header": false,
             "row_section": false
           },
@@ -830,7 +885,7 @@
               "start_col_offset_idx": 0,
               "end_col_offset_idx": 1,
               "text": "Header 0.0",
-              "column_header": false,
+              "column_header": true,
               "row_header": false,
               "row_section": false
             },
@@ -842,7 +897,7 @@
               "start_col_offset_idx": 1,
               "end_col_offset_idx": 2,
               "text": "Header 0.1",
-              "column_header": false,
+              "column_header": true,
               "row_header": false,
               "row_section": false
             },
@@ -854,7 +909,7 @@
               "start_col_offset_idx": 2,
               "end_col_offset_idx": 3,
               "text": "Header 0.2",
-              "column_header": false,
+              "column_header": true,
               "row_header": false,
               "row_section": false
             },
@@ -866,7 +921,7 @@
               "start_col_offset_idx": 3,
               "end_col_offset_idx": 4,
               "text": "Header 0.3",
-              "column_header": false,
+              "column_header": true,
               "row_header": false,
               "row_section": false
             }
@@ -972,7 +1027,8 @@
             }
           ]
         ]
-      }
+      },
+      "annotations": []
     },
     {
       "self_ref": "#/tables/3",
@@ -980,6 +1036,7 @@
         "$ref": "#/texts/0"
       },
       "children": [],
+      "content_layer": "body",
       "label": "table",
       "prov": [],
       "captions": [],
@@ -995,7 +1052,7 @@
             "start_col_offset_idx": 0,
             "end_col_offset_idx": 1,
             "text": "Header 0.0",
-            "column_header": false,
+            "column_header": true,
             "row_header": false,
             "row_section": false
           },
@@ -1007,7 +1064,7 @@
             "start_col_offset_idx": 1,
             "end_col_offset_idx": 2,
             "text": "Header 0.1",
-            "column_header": false,
+            "column_header": true,
             "row_header": false,
             "row_section": false
           },
@@ -1019,7 +1076,7 @@
             "start_col_offset_idx": 2,
             "end_col_offset_idx": 3,
             "text": "Header 0.2",
-            "column_header": false,
+            "column_header": true,
             "row_header": false,
             "row_section": false
           },
@@ -1156,7 +1213,7 @@
               "start_col_offset_idx": 0,
               "end_col_offset_idx": 1,
               "text": "Header 0.0",
-              "column_header": false,
+              "column_header": true,
               "row_header": false,
               "row_section": false
             },
@@ -1168,7 +1225,7 @@
               "start_col_offset_idx": 1,
               "end_col_offset_idx": 2,
               "text": "Header 0.1",
-              "column_header": false,
+              "column_header": true,
               "row_header": false,
               "row_section": false
             },
@@ -1180,7 +1237,7 @@
               "start_col_offset_idx": 2,
               "end_col_offset_idx": 3,
               "text": "Header 0.2",
-              "column_header": false,
+              "column_header": true,
               "row_header": false,
               "row_section": false
             }
@@ -1338,7 +1395,8 @@
             }
           ]
         ]
-      }
+      },
+      "annotations": []
     },
     {
       "self_ref": "#/tables/4",
@@ -1346,6 +1404,7 @@
         "$ref": "#/texts/0"
       },
       "children": [],
+      "content_layer": "body",
       "label": "table",
       "prov": [],
       "captions": [],
@@ -1361,7 +1420,7 @@
             "start_col_offset_idx": 0,
             "end_col_offset_idx": 1,
             "text": "Header 0.0",
-            "column_header": false,
+            "column_header": true,
             "row_header": false,
             "row_section": false
           },
@@ -1373,7 +1432,7 @@
             "start_col_offset_idx": 1,
             "end_col_offset_idx": 2,
             "text": "Header 0.1",
-            "column_header": false,
+            "column_header": true,
             "row_header": false,
             "row_section": false
           },
@@ -1385,7 +1444,7 @@
             "start_col_offset_idx": 2,
             "end_col_offset_idx": 3,
             "text": "Header 0.2",
-            "column_header": false,
+            "column_header": true,
             "row_header": false,
             "row_section": false
           },
@@ -1397,7 +1456,7 @@
             "start_col_offset_idx": 3,
             "end_col_offset_idx": 4,
             "text": "",
-            "column_header": false,
+            "column_header": true,
             "row_header": false,
             "row_section": false
           },
@@ -1409,7 +1468,7 @@
             "start_col_offset_idx": 4,
             "end_col_offset_idx": 5,
             "text": "",
-            "column_header": false,
+            "column_header": true,
             "row_header": false,
             "row_section": false
           },
@@ -1798,7 +1857,7 @@
               "start_col_offset_idx": 0,
               "end_col_offset_idx": 1,
               "text": "Header 0.0",
-              "column_header": false,
+              "column_header": true,
               "row_header": false,
               "row_section": false
             },
@@ -1810,7 +1869,7 @@
               "start_col_offset_idx": 1,
               "end_col_offset_idx": 2,
               "text": "Header 0.1",
-              "column_header": false,
+              "column_header": true,
               "row_header": false,
               "row_section": false
             },
@@ -1822,7 +1881,7 @@
               "start_col_offset_idx": 2,
               "end_col_offset_idx": 3,
               "text": "Header 0.2",
-              "column_header": false,
+              "column_header": true,
               "row_header": false,
               "row_section": false
             },
@@ -1834,7 +1893,7 @@
               "start_col_offset_idx": 3,
               "end_col_offset_idx": 4,
               "text": "",
-              "column_header": false,
+              "column_header": true,
               "row_header": false,
               "row_section": false
             },
@@ -1846,7 +1905,7 @@
               "start_col_offset_idx": 4,
               "end_col_offset_idx": 5,
               "text": "",
-              "column_header": false,
+              "column_header": true,
               "row_header": false,
               "row_section": false
             }
@@ -2348,9 +2407,11 @@
             }
           ]
         ]
-      }
+      },
+      "annotations": []
     }
   ],
   "key_value_items": [],
+  "form_items": [],
   "pages": {}
 }

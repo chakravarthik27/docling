@@ -5,9 +5,11 @@ from collections import defaultdict
 from typing import Dict, List, Set, Tuple
 
 from docling_core.types.doc import DocItemLabel, Size
+from docling_core.types.doc.page import TextCell
 from rtree import index
 
-from docling.datamodel.base_models import BoundingBox, Cell, Cluster, OcrCell
+from docling.datamodel.base_models import BoundingBox, Cluster, Page
+from docling.datamodel.pipeline_options import LayoutOptions
 
 _log = logging.getLogger(__name__)
 
@@ -17,7 +19,7 @@ class UnionFind:
 
     def __init__(self, elements):
         self.parent = {elem: elem for elem in elements}
-        self.rank = {elem: 0 for elem in elements}
+        self.rank = dict.fromkeys(elements, 0)
 
     def find(self, x):
         if self.parent[x] != x:
@@ -89,17 +91,12 @@ class SpatialClusterIndex:
         containment_threshold: float,
     ) -> bool:
         """Check if two bboxes overlap sufficiently."""
-        area1, area2 = bbox1.area(), bbox2.area()
-        if area1 <= 0 or area2 <= 0:
+        if bbox1.area() <= 0 or bbox2.area() <= 0:
             return False
 
-        overlap_area = bbox1.intersection_area_with(bbox2)
-        if overlap_area <= 0:
-            return False
-
-        iou = overlap_area / (area1 + area2 - overlap_area)
-        containment1 = overlap_area / area1
-        containment2 = overlap_area / area2
+        iou = bbox1.intersection_over_union(bbox2)
+        containment1 = bbox1.intersection_over_self(bbox2)
+        containment2 = bbox2.intersection_over_self(bbox1)
 
         return (
             iou > overlap_threshold
@@ -198,11 +195,16 @@ class LayoutPostprocessor:
         DocItemLabel.TITLE: DocItemLabel.SECTION_HEADER,
     }
 
-    def __init__(self, cells: List[Cell], clusters: List[Cluster], page_size: Size):
-        """Initialize processor with cells and clusters."""
-        """Initialize processor with cells and spatial indices."""
-        self.cells = cells
-        self.page_size = page_size
+    def __init__(
+        self, page: Page, clusters: List[Cluster], options: LayoutOptions
+    ) -> None:
+        """Initialize processor with page and clusters."""
+
+        self.cells = page.cells
+        self.page = page
+        self.page_size = page.size
+        self.all_clusters = clusters
+        self.options = options
         self.regular_clusters = [
             c for c in clusters if c.label not in self.SPECIAL_TYPES
         ]
@@ -217,7 +219,7 @@ class LayoutPostprocessor:
             [c for c in self.special_clusters if c.label in self.WRAPPER_TYPES]
         )
 
-    def postprocess(self) -> Tuple[List[Cluster], List[Cell]]:
+    def postprocess(self) -> Tuple[List[Cluster], List[TextCell]]:
         """Main processing pipeline."""
         self.regular_clusters = self._process_regular_clusters()
         self.special_clusters = self._process_special_clusters()
@@ -243,6 +245,10 @@ class LayoutPostprocessor:
             for child in cluster.children:
                 child.cells = self._sort_cells(child.cells)
 
+        assert self.page.parsed_page is not None
+        self.page.parsed_page.textline_cells = self.cells
+        self.page.parsed_page.has_lines = len(self.cells) > 0
+
         return final_clusters, self.cells
 
     def _process_regular_clusters(self) -> List[Cluster]:
@@ -261,24 +267,28 @@ class LayoutPostprocessor:
         # Initial cell assignment
         clusters = self._assign_cells_to_clusters(clusters)
 
-        # Remove clusters with no cells
-        clusters = [cluster for cluster in clusters if cluster.cells]
+        # Remove clusters with no cells (if keep_empty_clusters is False),
+        # but always keep clusters with label DocItemLabel.FORMULA
+        if not self.options.keep_empty_clusters:
+            clusters = [
+                cluster
+                for cluster in clusters
+                if cluster.cells or cluster.label == DocItemLabel.FORMULA
+            ]
 
         # Handle orphaned cells
         unassigned = self._find_unassigned_cells(clusters)
-        if unassigned:
-            next_id = max((c.id for c in clusters), default=0) + 1
+        if unassigned and self.options.create_orphan_clusters:
+            next_id = max((c.id for c in self.all_clusters), default=0) + 1
             orphan_clusters = []
             for i, cell in enumerate(unassigned):
-                conf = 1.0
-                if isinstance(cell, OcrCell):
-                    conf = cell.confidence
+                conf = cell.confidence
 
                 orphan_clusters.append(
                     Cluster(
                         id=next_id + i,
                         label=DocItemLabel.TEXT,
-                        bbox=cell.bbox,
+                        bbox=cell.to_bounding_box(),
                         confidence=conf,
                         cells=[cell],
                     )
@@ -306,6 +316,7 @@ class LayoutPostprocessor:
         special_clusters = self._handle_cross_type_overlaps(special_clusters)
 
         # Calculate page area from known page size
+        assert self.page_size is not None
         page_area = self.page_size.width * self.page_size.height
         if page_area > 0:
             # Filter out full-page pictures
@@ -321,11 +332,9 @@ class LayoutPostprocessor:
         for special in special_clusters:
             contained = []
             for cluster in self.regular_clusters:
-                overlap = cluster.bbox.intersection_area_with(special.bbox)
-                if overlap > 0:
-                    containment = overlap / cluster.bbox.area()
-                    if containment > 0.8:
-                        contained.append(cluster)
+                containment = cluster.bbox.intersection_over_self(special.bbox)
+                if containment > 0.8:
+                    contained.append(cluster)
 
             if contained:
                 # Sort contained clusters by minimum cell ID:
@@ -379,9 +388,7 @@ class LayoutPostprocessor:
             for regular in self.regular_clusters:
                 if regular.label == DocItemLabel.TABLE:
                     # Calculate overlap
-                    overlap = regular.bbox.intersection_area_with(wrapper.bbox)
-                    wrapper_area = wrapper.bbox.area()
-                    overlap_ratio = overlap / wrapper_area
+                    overlap_ratio = wrapper.bbox.intersection_over_self(regular.bbox)
 
                     conf_diff = wrapper.confidence - regular.confidence
 
@@ -421,8 +428,7 @@ class LayoutPostprocessor:
         # Rule 2: CODE vs others
         if candidate.label == DocItemLabel.CODE:
             # Calculate how much of the other cluster is contained within the CODE cluster
-            overlap = other.bbox.intersection_area_with(candidate.bbox)
-            containment = overlap / other.bbox.area()
+            containment = other.bbox.intersection_over_self(candidate.bbox)
             if containment > 0.8:  # other is 80% contained within CODE
                 return True
 
@@ -484,7 +490,9 @@ class LayoutPostprocessor:
         spatial_index = (
             self.regular_index
             if cluster_type == "regular"
-            else self.picture_index if cluster_type == "picture" else self.wrapper_index
+            else self.picture_index
+            if cluster_type == "picture"
+            else self.wrapper_index
         )
 
         # Map of currently valid clusters
@@ -556,13 +564,13 @@ class LayoutPostprocessor:
 
         return current_best if current_best else clusters[0]
 
-    def _deduplicate_cells(self, cells: List[Cell]) -> List[Cell]:
+    def _deduplicate_cells(self, cells: List[TextCell]) -> List[TextCell]:
         """Ensure each cell appears only once, maintaining order of first appearance."""
         seen_ids = set()
         unique_cells = []
         for cell in cells:
-            if cell.id not in seen_ids:
-                seen_ids.add(cell.id)
+            if cell.index not in seen_ids:
+                seen_ids.add(cell.index)
                 unique_cells.append(cell)
         return unique_cells
 
@@ -581,12 +589,12 @@ class LayoutPostprocessor:
             best_cluster = None
 
             for cluster in clusters:
-                if cell.bbox.area() <= 0:
+                if cell.rect.to_bounding_box().area() <= 0:
                     continue
 
-                overlap = cell.bbox.intersection_area_with(cluster.bbox)
-                overlap_ratio = overlap / cell.bbox.area()
-
+                overlap_ratio = cell.rect.to_bounding_box().intersection_over_self(
+                    cluster.bbox
+                )
                 if overlap_ratio > best_overlap:
                     best_overlap = overlap_ratio
                     best_cluster = cluster
@@ -600,11 +608,13 @@ class LayoutPostprocessor:
 
         return clusters
 
-    def _find_unassigned_cells(self, clusters: List[Cluster]) -> List[Cell]:
+    def _find_unassigned_cells(self, clusters: List[Cluster]) -> List[TextCell]:
         """Find cells not assigned to any cluster."""
-        assigned = {cell.id for cluster in clusters for cell in cluster.cells}
+        assigned = {cell.index for cluster in clusters for cell in cluster.cells}
         return [
-            cell for cell in self.cells if cell.id not in assigned and cell.text.strip()
+            cell
+            for cell in self.cells
+            if cell.index not in assigned and cell.text.strip()
         ]
 
     def _adjust_cluster_bboxes(self, clusters: List[Cluster]) -> List[Cluster]:
@@ -614,10 +624,10 @@ class LayoutPostprocessor:
                 continue
 
             cells_bbox = BoundingBox(
-                l=min(cell.bbox.l for cell in cluster.cells),
-                t=min(cell.bbox.t for cell in cluster.cells),
-                r=max(cell.bbox.r for cell in cluster.cells),
-                b=max(cell.bbox.b for cell in cluster.cells),
+                l=min(cell.rect.to_bounding_box().l for cell in cluster.cells),
+                t=min(cell.rect.to_bounding_box().t for cell in cluster.cells),
+                r=max(cell.rect.to_bounding_box().r for cell in cluster.cells),
+                b=max(cell.rect.to_bounding_box().b for cell in cluster.cells),
             )
 
             if cluster.label == DocItemLabel.TABLE:
@@ -633,9 +643,9 @@ class LayoutPostprocessor:
 
         return clusters
 
-    def _sort_cells(self, cells: List[Cell]) -> List[Cell]:
+    def _sort_cells(self, cells: List[TextCell]) -> List[TextCell]:
         """Sort cells in native reading order."""
-        return sorted(cells, key=lambda c: (c.id))
+        return sorted(cells, key=lambda c: (c.index))
 
     def _sort_clusters(
         self, clusters: List[Cluster], mode: str = "id"
@@ -646,7 +656,7 @@ class LayoutPostprocessor:
                 clusters,
                 key=lambda cluster: (
                     (
-                        min(cell.id for cell in cluster.cells)
+                        min(cell.index for cell in cluster.cells)
                         if cluster.cells
                         else sys.maxsize
                     ),
